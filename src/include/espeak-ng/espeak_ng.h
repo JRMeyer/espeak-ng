@@ -1,6 +1,6 @@
 /* eSpeak NG API.
  *
- * Copyright (C) 2015-2016 Reece H. Dunn
+ * Copyright (C) 2015-2017 Reece H. Dunn
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #ifndef ESPEAK_NG_H
 #define ESPEAK_NG_H
 
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -41,6 +41,7 @@ typedef enum {
 	ENS_GROUP_ERRNO              = 0x00000000, /* Values 0-255 map to errno error codes. */
 	ENS_GROUP_ESPEAK_NG          = 0x10000000, /* eSpeak NG error codes. */
 
+	/* eSpeak NG 1.49.0 */
 	ENS_OK                       = 0,
 	ENS_COMPILE_ERROR            = 0x100001FF,
 	ENS_VERSION_MISMATCH         = 0x100002FF,
@@ -55,12 +56,25 @@ typedef enum {
 	ENS_UNSUPPORTED_PHON_FORMAT  = 0x10000BFF,
 	ENS_NO_SPECT_FRAMES          = 0x10000CFF,
 	ENS_EMPTY_PHONEME_MANIFEST   = 0x10000DFF,
+	ENS_SPEECH_STOPPED           = 0x10000EFF,
+
+	/* eSpeak NG 1.49.2 */
+	ENS_UNKNOWN_PHONEME_FEATURE  = 0x10000FFF,
 } espeak_ng_STATUS;
 
 typedef enum {
 	ENOUTPUT_MODE_SYNCHRONOUS = 0x0001,
 	ENOUTPUT_MODE_SPEAK_AUDIO = 0x0002,
 } espeak_ng_OUTPUT_MODE;
+
+typedef enum {
+	ENGENDER_UNKNOWN = 0,
+	ENGENDER_MALE = 1,
+	ENGENDER_FEMALE = 2,
+	ENGENDER_NEUTRAL = 3,
+} espeak_ng_VOICE_GENDER;
+
+/* eSpeak NG 1.49.0 */
 
 typedef struct espeak_ng_ERROR_CONTEXT_ *espeak_ng_ERROR_CONTEXT;
 
@@ -159,6 +173,15 @@ espeak_ng_CompilePhonemeData(long rate,
 ESPEAK_NG_API espeak_ng_STATUS
 espeak_ng_CompileIntonation(FILE *log,
                             espeak_ng_ERROR_CONTEXT *context);
+
+/* eSpeak NG 1.49.1 */
+
+ESPEAK_NG_API espeak_ng_STATUS
+espeak_ng_CompilePhonemeDataPath(long rate,
+                                 const char *source_path,
+                                 const char *destination_path,
+                                 FILE *log,
+                                 espeak_ng_ERROR_CONTEXT *context);
 
 #ifdef __cplusplus
 }

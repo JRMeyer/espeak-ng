@@ -45,7 +45,7 @@
 #endif
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #include "speech.h"
 #include "phoneme.h"
@@ -55,10 +55,6 @@
 #include "espeak_command.h"
 #include "fifo.h"
 #include "event.h"
-
-#ifndef S_ISDIR
-#define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
-#endif
 
 unsigned char *outbuf = NULL;
 
@@ -82,8 +78,17 @@ t_espeak_callback *synth_callback = NULL;
 int (*uri_callback)(int, const char *, const char *) = NULL;
 int (*phoneme_callback)(const char *) = NULL;
 
-char path_home[N_PATH_HOME]; // this is the espeak-data directory
+char path_home[N_PATH_HOME]; // this is the espeak-ng-data directory
 extern int saved_parameters[N_SPEECH_PARAM]; // Parameters saved on synthesis start
+
+void cancel_audio(void)
+{
+#ifdef HAVE_PCAUDIOLIB_AUDIO_H
+	if ((my_mode & ENOUTPUT_MODE_SPEAK_AUDIO) == ENOUTPUT_MODE_SPEAK_AUDIO) {
+		audio_object_flush(my_audio);
+	}
+#endif
+}
 
 static int dispatch_audio(short *outbuf, int length, espeak_EVENT *event)
 {
@@ -222,6 +227,21 @@ int sync_espeak_terminated_msg(uint32_t unique_identifier, void *user_data)
 
 #endif
 
+static int check_data_path(const char *path, int allow_directory)
+{
+	if (!path) return 0;
+
+	snprintf(path_home, sizeof(path_home), "%s/espeak-ng-data", path);
+	if (GetFileLength(path_home) == -EISDIR)
+		return 1;
+
+	if (!allow_directory)
+		return 0;
+
+	snprintf(path_home, sizeof(path_home), "%s", path);
+	return GetFileLength(path_home) == -EISDIR;
+}
+
 #pragma GCC visibility push(default)
 
 ESPEAK_NG_API espeak_ng_STATUS espeak_ng_InitializeOutput(espeak_ng_OUTPUT_MODE output_mode, int buffer_length, const char *device)
@@ -234,9 +254,9 @@ ESPEAK_NG_API espeak_ng_STATUS espeak_ng_InitializeOutput(espeak_ng_OUTPUT_MODE 
 	my_audio = create_audio_device_object(device, "eSpeak", "Text-to-Speech");
 #endif
 
-	// buflength is in mS, allocate 2 bytes per sample
-	if ((buffer_length == 0) || (output_mode & ENOUTPUT_MODE_SPEAK_AUDIO))
-		buffer_length = 200;
+	// buffer_length is in mS, allocate 2 bytes per sample
+	if (buffer_length == 0)
+		buffer_length = 60;
 
 	outbuf_size = (buffer_length * samplerate)/500;
 	out_start = (unsigned char *)realloc(outbuf, outbuf_size);
@@ -246,7 +266,7 @@ ESPEAK_NG_API espeak_ng_STATUS espeak_ng_InitializeOutput(espeak_ng_OUTPUT_MODE 
 		outbuf = out_start;
 
 	// allocate space for event list.  Allow 200 events per second.
-	// Add a constant to allow for very small buf_length
+	// Add a constant to allow for very small buffer_length
 	n_event_list = (buffer_length*200)/1000 + 20;
 	espeak_EVENT *new_event_list = (espeak_EVENT *)realloc(event_list, sizeof(espeak_EVENT) * n_event_list);
 	if (new_event_list == NULL)
@@ -261,57 +281,47 @@ int GetFileLength(const char *filename)
 	struct stat statbuf;
 
 	if (stat(filename, &statbuf) != 0)
-		return 0;
+		return -errno;
 
 	if (S_ISDIR(statbuf.st_mode))
-		return -2; // a directory
+		return -EISDIR;
 
 	return statbuf.st_size;
 }
 
 ESPEAK_NG_API void espeak_ng_InitializePath(const char *path)
 {
-	if (path != NULL) {
-		sprintf(path_home, "%s/espeak-data", path);
+	if (check_data_path(path, 1))
 		return;
-	}
 
 #ifdef PLATFORM_WINDOWS
 	HKEY RegKey;
 	unsigned long size;
 	unsigned long var_type;
-	char *env;
 	unsigned char buf[sizeof(path_home)-13];
 
-	if ((env = getenv("ESPEAK_DATA_PATH")) != NULL) {
-		sprintf(path_home, "%s/espeak-data", env);
-		if (GetFileLength(path_home) == -2)
-			return; // an espeak-data directory exists
-	}
+	if (check_data_path(getenv("ESPEAK_DATA_PATH"), 1))
+		return;
 
 	buf[0] = 0;
 	RegOpenKeyExA(HKEY_LOCAL_MACHINE, "Software\\eSpeak NG", 0, KEY_READ, &RegKey);
+	if (RegKey == NULL)
+		RegOpenKeyExA(HKEY_LOCAL_MACHINE, "Software\\WOW6432Node\\eSpeak NG", 0, KEY_READ, &RegKey);
 	size = sizeof(buf);
 	var_type = REG_SZ;
 	RegQueryValueExA(RegKey, "Path", 0, &var_type, buf, &size);
 
-	sprintf(path_home, "%s\\espeak-data", buf);
-#elif defined(PLATFORM_DOS)
-	strcpy(path_home, PATH_ESPEAK_DATA);
-#else
-	char *env;
+	if (check_data_path(buf, 1))
+		return;
+#elif !defined(PLATFORM_DOS)
+	if (check_data_path(getenv("ESPEAK_DATA_PATH"), 1))
+		return;
 
-	// check for environment variable
-	if ((env = getenv("ESPEAK_DATA_PATH")) != NULL) {
-		snprintf(path_home, sizeof(path_home), "%s/espeak-data", env);
-		if (GetFileLength(path_home) == -2)
-			return; // an espeak-data directory exists
-	}
-
-	snprintf(path_home, sizeof(path_home), "%s/espeak-data", getenv("HOME"));
-	if (access(path_home, R_OK) != 0)
-		strcpy(path_home, PATH_ESPEAK_DATA);
+	if (check_data_path(getenv("HOME"), 0))
+		return;
 #endif
+
+	strcpy(path_home, PATH_ESPEAK_DATA);
 }
 
 ESPEAK_NG_API espeak_ng_STATUS espeak_ng_Initialize(espeak_ng_ERROR_CONTEXT *context)
@@ -344,7 +354,7 @@ ESPEAK_NG_API espeak_ng_STATUS espeak_ng_Initialize(espeak_ng_ERROR_CONTEXT *con
 	VoiceReset(0);
 
 	for (param = 0; param < N_SPEECH_PARAM; param++)
-		param_stack[0].parameter[param] = param_defaults[param];
+		param_stack[0].parameter[param] = saved_parameters[param] = param_defaults[param];
 
 	SetParameter(espeakRATE, 175, 0);
 	SetParameter(espeakVOLUME, 100, 0);
@@ -412,7 +422,7 @@ static espeak_ng_STATUS Synthesize(unsigned int unique_identifier, const void *t
 			finished = synth_callback((short *)outbuf, length, event_list);
 		if (finished) {
 			SpeakNextClause(NULL, 0, 2); // stop
-			break;
+			return ENS_SPEECH_STOPPED;
 		}
 
 		if (Generate(phoneme_list, &n_phoneme_list, 1) == 0) {
@@ -425,17 +435,21 @@ static espeak_ng_STATUS Synthesize(unsigned int unique_identifier, const void *t
 				event_list[0].user_data = my_user_data;
 
 				if (SpeakNextClause(NULL, NULL, 1) == 0) {
+					finished = 0;
 					if ((my_mode & ENOUTPUT_MODE_SPEAK_AUDIO) == ENOUTPUT_MODE_SPEAK_AUDIO) {
 						if (dispatch_audio(NULL, 0, NULL) < 0)
 							return ENS_AUDIO_ERROR;
 					} else if (synth_callback)
-						synth_callback(NULL, 0, event_list); // NULL buffer ptr indicates end of data
-					break;
+						finished = synth_callback(NULL, 0, event_list); // NULL buffer ptr indicates end of data
+					if (finished) {
+						SpeakNextClause(NULL, 0, 2); // stop
+						return ENS_SPEECH_STOPPED;
+					}
+					return ENS_OK;
 				}
 			}
 		}
 	}
-	return ENS_OK;
 }
 
 void MarkerEvent(int type, unsigned int char_position, int value, int value2, unsigned char *out_ptr)
@@ -501,7 +515,9 @@ espeak_ng_STATUS sync_espeak_Synth(unsigned int unique_identifier, const void *t
 	espeak_ng_STATUS aStatus = Synthesize(unique_identifier, text, flags);
 #ifdef HAVE_PCAUDIOLIB_AUDIO_H
 	if ((my_mode & ENOUTPUT_MODE_SPEAK_AUDIO) == ENOUTPUT_MODE_SPEAK_AUDIO) {
-		int error = audio_object_drain(my_audio);
+		int error = (aStatus == ENS_SPEECH_STOPPED)
+		          ? audio_object_flush(my_audio)
+		          : audio_object_drain(my_audio);
 		if (error != 0)
 			fprintf(stderr, "error: %s\n", audio_object_strerror(my_audio, error));
 	}
@@ -810,7 +826,7 @@ ESPEAK_NG_API espeak_ng_STATUS espeak_ng_Cancel(void)
 
 #ifdef HAVE_PCAUDIOLIB_AUDIO_H
 	if ((my_mode & ENOUTPUT_MODE_SPEAK_AUDIO) == ENOUTPUT_MODE_SPEAK_AUDIO)
-		audio_object_close(my_audio);
+		audio_object_flush(my_audio);
 #endif
 	embedded_value[EMBED_T] = 0; // reset echo for pronunciation announcements
 

@@ -31,36 +31,43 @@
 #include "phoneme.h"
 #include "synthesize.h"
 
-espeak_ng_STATUS create_file_error_context(espeak_ng_ERROR_CONTEXT *context, espeak_ng_STATUS status, const char *filename)
+espeak_ng_STATUS
+create_file_error_context(espeak_ng_ERROR_CONTEXT *context,
+                          espeak_ng_STATUS status,
+                          const char *filename)
 {
 	if (context) {
 		if (*context) {
-			free((*context)->path);
+			free((*context)->name);
 		} else {
 			*context = malloc(sizeof(espeak_ng_ERROR_CONTEXT_));
 			if (!*context)
 				return ENOMEM;
 		}
 		(*context)->type = ERROR_CONTEXT_FILE;
-		(*context)->path = strdup(filename);
+		(*context)->name = strdup(filename);
 		(*context)->version = 0;
 		(*context)->expected_version = 0;
 	}
 	return status;
 }
 
-espeak_ng_STATUS create_version_mismatch_error_context(espeak_ng_ERROR_CONTEXT *context, const char *path_home, int version, int expected_version)
+espeak_ng_STATUS
+create_version_mismatch_error_context(espeak_ng_ERROR_CONTEXT *context,
+                                      const char *path_home,
+                                      int version,
+                                      int expected_version)
 {
 	if (context) {
 		if (*context) {
-			free((*context)->path);
+			free((*context)->name);
 		} else {
 			*context = malloc(sizeof(espeak_ng_ERROR_CONTEXT_));
 			if (!*context)
 				return ENOMEM;
 		}
 		(*context)->type = ERROR_CONTEXT_VERSION;
-		(*context)->path = strdup(path_home);
+		(*context)->name = strdup(path_home);
 		(*context)->version = version;
 		(*context)->expected_version = expected_version;
 	}
@@ -69,16 +76,20 @@ espeak_ng_STATUS create_version_mismatch_error_context(espeak_ng_ERROR_CONTEXT *
 
 #pragma GCC visibility push(default)
 
-ESPEAK_NG_API void espeak_ng_ClearErrorContext(espeak_ng_ERROR_CONTEXT *context)
+ESPEAK_NG_API void
+espeak_ng_ClearErrorContext(espeak_ng_ERROR_CONTEXT *context)
 {
 	if (context && *context) {
-		free((*context)->path);
+		free((*context)->name);
 		free(*context);
 		*context = NULL;
 	}
 }
 
-ESPEAK_NG_API void espeak_ng_GetStatusCodeMessage(espeak_ng_STATUS status, char *buffer, size_t length)
+ESPEAK_NG_API void
+espeak_ng_GetStatusCodeMessage(espeak_ng_STATUS status,
+                               char *buffer,
+                               size_t length)
 {
 	switch (status)
 	{
@@ -86,7 +97,7 @@ ESPEAK_NG_API void espeak_ng_GetStatusCodeMessage(espeak_ng_STATUS status, char 
 		strncpy0(buffer, "Compile error", length);
 		break;
 	case ENS_VERSION_MISMATCH:
-		strncpy0(buffer, "Wrong version of espeak-data", length);
+		strncpy0(buffer, "Wrong version of espeak-ng-data", length);
 		break;
 	case ENS_FIFO_BUFFER_FULL:
 		strncpy0(buffer, "The FIFO buffer is full", length);
@@ -121,6 +132,9 @@ ESPEAK_NG_API void espeak_ng_GetStatusCodeMessage(espeak_ng_STATUS status, char 
 	case ENS_EMPTY_PHONEME_MANIFEST:
 		strncpy0(buffer, "The phoneme manifest file does not contain any phonemes", length);
 		break;
+	case ENS_UNKNOWN_PHONEME_FEATURE:
+		strncpy0(buffer, "The phoneme feature is not recognised", length);
+		break;
 	default:
 		if ((status & ENS_GROUP_MASK) == ENS_GROUP_ERRNO)
 			strerror_r(status, buffer, length);
@@ -130,7 +144,10 @@ ESPEAK_NG_API void espeak_ng_GetStatusCodeMessage(espeak_ng_STATUS status, char 
 	}
 }
 
-ESPEAK_NG_API void espeak_ng_PrintStatusCodeMessage(espeak_ng_STATUS status, FILE *out, espeak_ng_ERROR_CONTEXT context)
+ESPEAK_NG_API void
+espeak_ng_PrintStatusCodeMessage(espeak_ng_STATUS status,
+                                 FILE *out,
+                                 espeak_ng_ERROR_CONTEXT context)
 {
 	char error[512];
 	espeak_ng_GetStatusCodeMessage(status, error, sizeof(error));
@@ -138,11 +155,11 @@ ESPEAK_NG_API void espeak_ng_PrintStatusCodeMessage(espeak_ng_STATUS status, FIL
 		switch (context->type)
 		{
 		case ERROR_CONTEXT_FILE:
-			fprintf(out, "Error processing file '%s': %s.\n", context->path, error);
+			fprintf(out, "Error processing file '%s': %s.\n", context->name, error);
 			break;
 		case ERROR_CONTEXT_VERSION:
 			fprintf(out, "Error: %s at '%s' (expected 0x%x, got 0x%x).\n",
-			        error, context->path, context->expected_version, context->version);
+			        error, context->name, context->expected_version, context->version);
 			break;
 		}
 	} else

@@ -32,7 +32,7 @@ typedef enum
 typedef struct espeak_ng_ERROR_CONTEXT_
 {
 	espeak_ng_CONTEXT_TYPE type;
-	char *path;
+	char *name;
 	int version;
 	int expected_version;
 } espeak_ng_ERROR_CONTEXT_;

@@ -1,4 +1,4 @@
-# Voice Files
+# Voice and Language Files
 
 - [Identification Attributes](#identification-attributes)
   - [name](#name)
@@ -25,14 +25,13 @@
   - [dictionary](#dictionary)
   - [dictrules](#dictrules)
   - [replace](#replace)
-  - [stressLength](#stressLength)
-  - [stressAdd](#stressAdd)
-  - [stressAmp](#stressAmp)
+  - [stressLength](#stresslength)
+  - [stressAdd](#stressadd)
+  - [stressAmp](#stressamp)
   - [intonation](#intonation)
   - [charset](#charset)
   - [dictmin](#dictmin)
   - [alphabet2](#alphabet2)
-  - [dictdialect](#dictdialect)
 
 ----------
 
@@ -40,7 +39,7 @@ A Voice file specifies a language (and possibly a language variant or
 dialect) together with various attributes that affect the
 characteristics of the voice quality and how the language is spoken.
 
-Voice files are located in the `espeak-data/voices` directory, and are
+Voice files are located in the `espeak-ng-data/voices` directory, and are
 grouped by the [ISO 639-5](https://en.wikipedia.org/wiki/ISO_639-5)
 language family of the language being specified in the voice files.
 See also Wikipedia's
@@ -221,7 +220,7 @@ adjustment applies only to voiced sounds such as vowels and sonorant
 consonants (such as `[n]` and `[l]`). Unvoiced sounds such as `[s]` are
 unaffected.
 
-This `tone` statement can also appear in `espeak-data/config`, in which case
+This `tone` statement can also appear in `espeak-ng-data/config`, in which case
 it applies to all voices which don't have their own `tone` statement.
 
 ### flutter
@@ -339,10 +338,10 @@ accents.
 
 	dictionary <name>
 
-Specifies which pair of dictionary files to use. eg. "english" indicates
+Specifies which pair of dictionary files to use. For example, `en` indicates
 that `speak-data/en_dict` should be used to translate from words to
 phonemes. This parameter is usually not needed as it is set by default
-to the first two letters of "language" parameter.
+to the value of the "language" parameter.
 
 ### dictrules
 
@@ -352,7 +351,7 @@ Gives a list of conditional dictionary rules which are applied for this
 voice. Rule numbers are in the range 0 to 31 and are specific to a
 language dictionary. They apply to rules in the language's `*_rules`
 dictionary file and also its `*_list` exceptions list. See
-[Text to Phoneme Translation](dictionary.md).
+[Text to Phoneme Translation](dictionary.md#conditional-rules).
 
 ### replace
 
@@ -399,7 +398,7 @@ vowels in stressed and unstressed syllables.
 
 Eight integer parameters. These are added to the voice's corresponding
 `stressLength` values. They are used in the voice variant files in
-`espeak-data/voices/!v` to give some variety. Negative values may be used.
+`espeak-ng-data/voices/!v` to give some variety. Negative values may be used.
 
 ### stressAmp
 
@@ -431,7 +430,7 @@ The ISO 8859 character set number. (not all are implemented).
 
 Used for some languages to detect if additional language data is
 installed. If the size of the compiled dictionary data for the language
-(the file `espeak-data/*_dict`) is less than this size then a
+(the file `espeak-ng-data/*_dict`) is less than this size then a
 warning is given.
 
 ### alphabet2
@@ -445,26 +444,6 @@ in a non-native alphabet. e.g.:
 
 Alphabets names include: latin, cyr (cyrillic), ar (arabic). The default
 language for latin alphabet is English.
-
-### dictdialect
-
-	dictdialect <dialect>
-
-Words can be marked in the `*_list` or `*_rules` file to be spoken using
-a foreign voice. This `dictdialect` attribute can be used to specify
-which dialect of the foreign language should be used, instead of the
-default dialect. The currently available dialects are:
-
-* `en-us` (US English)  
-* `es-la` (Latin American Spanish)
-
-e.g.
-
-	dictdialect en-us
-
-This means that any words or rules which are maked with `_^_EN` will be
-spoken with the US English voice instead of the default UK English
-voice.
 
 Additional attributes are available to set various internal options
 which control how language is processed. These would normally be set in

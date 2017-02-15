@@ -39,10 +39,14 @@
         c          k
      _) c (L01A    k         // allow: cl cr  at start of word
      _) ch         tS        // allow _ch
-
         c (Y       T         // ce, ci
         ch         tS
      A) ck         k
+
+.group ç
+	ç	s
+	A) ç (A	s
+	_) ç	s
 
 .group d
         d          d
@@ -63,18 +67,14 @@
 
 
 .group e
-        e          e
-//          e (CK      E
-        e (nK      E
-        e (r       E
-        e (Ch      e
-    Ar) e          E
-        ei         eI
-        ey (K      eI
-        ey (_      'eI
-        eu         eU
-        eu (_      'eU
-
+	e	e
+	e (nC	E
+	e (Ch	e
+	ei	eI
+	ey (K	eI
+	ey (_	'eI
+	eu	eU
+	eu (_	'eU
 
 .group f
         f          f
@@ -138,7 +138,7 @@
        // @) m (_       =m
      _) mn (em     n
      _) mb (A      mb
-
+	@@) mente (_S5t	m'e/nte
 
 .group n
         n          n
@@ -151,14 +151,14 @@
      _) nh (A      n
 
 .group o
-        o          o
-        o (CK      O
-        o (r       O
-        o (Ch      o
-    Ar) o          O
-        oi         oI
-        oy (K      oI
-        oy (_      'oI
+	o	o
+	o (CK	o
+	o (r	o
+	o (Ch	o
+// 	Ar) o	o
+	oi	oI
+	oy (K	 oI
+	oy (_	'oI
         ou         ow
 
 .group p
@@ -179,6 +179,8 @@
         qu (Y      k         // que, qui
      _) qw (A      kw        // qwerty
 
+.group rr
+	rr	rr
 
 .group r
         r          r
@@ -186,12 +188,12 @@
         r (t       r
      A) r (A       r
      C) r (A       r
-     _) r (A       R2
+     _) r (A       rr
      l) r (A       R2
      m) r (A       R2
      n) r (A       R2
      s) r (A       R2
-        rr         R2
+
 
 
 .group s
@@ -267,17 +269,17 @@
 
 .group
         á          ''a
-        é          ''E
+        é          ''e
         í          ''i
-        ó          ''O
+        ó          ''o
         ú          ''u
         ü          u
         ñ          n^
-        $          d'Olar
+        $          d'olar
 
-     _) - (_D      m'EnOs
+     _) - (_D      m'Enos
     A_) - (_D      _
     C_) - (_D      _
 
-        , (D       kOma
+        , (D       koma
 

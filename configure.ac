@@ -1,5 +1,5 @@
 AC_PREREQ([2.63])
-AC_INIT([eSpeak NG], [1.48.15], [https://github.com/espeak-ng/espeak-ng/issues], [espeak-ng], [https://github.com/espeak-ng/espeak-ng])
+AC_INIT([eSpeak NG], [1.49.2-dev], [https://github.com/espeak-ng/espeak-ng/issues], [espeak-ng], [https://github.com/espeak-ng/espeak-ng])
 AM_INIT_AUTOMAKE()
 LT_INIT
 
@@ -18,6 +18,26 @@ AC_PROG_CC
 AC_PROG_MAKE_SET
 AC_PROG_LIBTOOL
 AC_PROG_LN_S
+
+AC_CHECK_PROG(NDKBUILD_CHECK,[ndk-build],yes)
+
+dnl ================================================================
+dnl gradle checks.
+dnl ================================================================
+
+AC_ARG_WITH([gradle],
+    [AS_HELP_STRING([--with-gradle], [specify the gradle program to use @<:@default=gradle@:>@])],
+    [GRADLE=$with_gradle],
+    [GRADLE=gradle])
+
+AC_MSG_CHECKING([for gradle])
+if test -e ${GRADLE} ; then
+    AC_MSG_RESULT([${GRADLE}])
+else
+    AC_MSG_RESULT([no])
+fi
+
+AC_SUBST(GRADLE)
 
 dnl ================================================================
 dnl C99 compiler checks.
@@ -65,14 +85,16 @@ dnl ================================================================
 dnl library checks.
 dnl ================================================================
 
-AC_CHECK_HEADERS([fcntl.h])    dnl POSIX
-AC_CHECK_HEADERS([getopt.h])   dnl POSIX
-AC_CHECK_HEADERS([locale.h])   dnl C89
-AC_CHECK_HEADERS([stddef.h])   dnl C89
-AC_CHECK_HEADERS([stdbool.h])  dnl C99
-AC_CHECK_HEADERS([sys/time.h]) dnl POSIX
-AC_CHECK_HEADERS([wchar.h])    dnl C89
-AC_CHECK_HEADERS([wctype.h])   dnl C89
+AC_CHECK_HEADERS([endian.h])     dnl Linux
+AC_CHECK_HEADERS([fcntl.h])      dnl POSIX
+AC_CHECK_HEADERS([getopt.h])     dnl POSIX
+AC_CHECK_HEADERS([locale.h])     dnl C89
+AC_CHECK_HEADERS([stddef.h])     dnl C89
+AC_CHECK_HEADERS([stdbool.h])    dnl C99
+AC_CHECK_HEADERS([sys/endian.h]) dnl BSD
+AC_CHECK_HEADERS([sys/time.h])   dnl POSIX
+AC_CHECK_HEADERS([wchar.h])      dnl C89
+AC_CHECK_HEADERS([wctype.h])     dnl C89
 
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
@@ -81,20 +103,20 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 
 AC_FUNC_FORK
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
 AC_FUNC_STRCOLL
 AC_FUNC_ERROR_AT_LINE
 
 AC_CHECK_FUNCS([dup2])
 AC_CHECK_FUNCS([getopt_long])
 AC_CHECK_FUNCS([gettimeofday])
+AC_CHECK_FUNCS([malloc]) dnl Avoid "Undefined reference to rpl_malloc" when using AC_FUNC_MALLOC.
 AC_CHECK_FUNCS([memchr])
 AC_CHECK_FUNCS([memmove])
 AC_CHECK_FUNCS([memset])
 AC_CHECK_FUNCS([mkdir])
 AC_CHECK_FUNCS([mkstemp])
 AC_CHECK_FUNCS([pow])
+AC_CHECK_FUNCS([realloc]) dnl Avoid "Undefined reference to rpl_malloc" when using AC_FUNC_REALLOC.
 AC_CHECK_FUNCS([setlocale])
 AC_CHECK_FUNCS([sqrt])
 AC_CHECK_FUNCS([strchr])
@@ -246,6 +268,9 @@ AC_MSG_NOTICE([
 
         Sonic:                         ${have_sonic}
         PCAudioLib:                    ${have_pcaudiolib}
+
+        gradle (Android):              ${GRADLE}
+        ndk-build (Android):           ${NDKBUILD_CHECK}
 
         Klatt:                         ${have_klatt}
         MBROLA:                        ${have_mbrola}

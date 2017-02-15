@@ -25,10 +25,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wctype.h>
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #include "speech.h"
 #include "phoneme.h"
@@ -691,8 +690,8 @@ Translator *SelectTranslator(const char *name)
 	case L('i', 'a'): // Interlingua
 	case L_pap: // Papiamento
 	{
-		static const short stress_lengths_es[8] = { 160, 140,  145, 140,  0, 0,  200, 245 };
-		static const unsigned char stress_amps_es[8] = { 16, 13, 15, 16, 20, 20, 22, 22 }; // 'diminished' is used to mark a quieter, final unstressed syllable
+		static const short stress_lengths_es[8] = { 160, 145,  155, 150,  0, 0,  200, 245 };
+		static const unsigned char stress_amps_es[8] = { 16, 14, 15, 16, 20, 20, 22, 22 }; // 'diminished' is used to mark a quieter, final unstressed syllable
 		static const wchar_t ca_punct_within_word[] = { '\'', 0xb7, 0 }; // ca: allow middle-dot within word
 
 		SetupTranslator(tr, stress_lengths_es, stress_amps_es);
@@ -977,26 +976,23 @@ Translator *SelectTranslator(const char *name)
 		break;
 	case L('i', 't'): // Italian
 	{
-		static const short stress_lengths_it[8] =
-		{ 165, 130,  170, 150,  0, 0,  218, 305 };
-		static const unsigned char stress_amps_it[8] =
-		{ 16, 18, 17, 14, 20, 22, 22, 22 };
-
+		static const short stress_lengths_it[8] = { 165, 140, 150, 165, 0, 0, 218, 305 };
+		static const unsigned char stress_amps_it[8] = { 17, 15, 18, 16, 20, 22, 22, 22 };
 		SetupTranslator(tr, stress_lengths_it, stress_amps_it);
-
 		tr->langopts.length_mods0 = tr->langopts.length_mods; // don't lengthen vowels in the last syllable
 		tr->langopts.stress_rule = STRESSPOSN_2R;
-		tr->langopts.stress_flags = S_FINAL_NO_2 | S_PRIORITY_STRESS;
+		tr->langopts.stress_flags = S_NO_AUTO_2 | S_FINAL_DIM_ONLY | S_PRIORITY_STRESS;
 		tr->langopts.vowel_pause = 1;
-		tr->langopts.unstressed_wd1 = 2;
+		tr->langopts.unstressed_wd1 = 0;
 		tr->langopts.unstressed_wd2 = 2;
 		tr->langopts.param[LOPT_IT_LENGTHEN] = 2; // remove lengthen indicator from unstressed or non-penultimate syllables
 		tr->langopts.param[LOPT_IT_DOUBLING] = 1; // double the first consonant if the previous word ends in a stressed vowel (changed to =1, 23.01.2014 - only use if prev.word has $double)
 		tr->langopts.param[LOPT_SONORANT_MIN] = 130; // limit the shortening of sonorants before short vowels
 		tr->langopts.param[LOPT_REDUCE] = 1; // reduce vowels even if phonemes are specified in it_list
 		tr->langopts.param[LOPT_ALT] = 2; // call ApplySpecialAttributes2() if a word has $alt or $alt2
-		tr->langopts.numbers = NUM_SINGLE_VOWEL | NUM_OMIT_1_HUNDRED |NUM_DECIMAL_COMMA | NUM_ROMAN | NUM_DFRACTION_1 | NUM_ROMAN_CAPITALS | NUM_ROMAN_AFTER;
+		tr->langopts.numbers = NUM_SINGLE_VOWEL | NUM_OMIT_1_HUNDRED |NUM_DECIMAL_COMMA | NUM_DFRACTION_1 | NUM_ROMAN | NUM_ROMAN_CAPITALS | NUM_ROMAN_ORDINAL;
 		tr->langopts.numbers2 = NUM2_NO_TEEN_ORDINALS;
+		tr->langopts.roman_suffix = utf8_ordinal;
 		tr->langopts.accents = 2; // Say "Capital" after the letter.
 		SetLetterVowel(tr, 'y');
 	}
@@ -1103,6 +1099,9 @@ Translator *SelectTranslator(const char *name)
 		tr->langopts.max_initial_consonants = 2;
 	}
 		break;
+	case L('k', 'y'): // Kyrgyx
+		tr->langopts.numbers = 1;
+		break;
 	case L('l', 'a'): // Latin
 	{
 		tr->charset_a0 = charsets[4]; // ISO-8859-4, includes a,e,i,o,u-macron
@@ -1130,8 +1129,8 @@ Translator *SelectTranslator(const char *name)
 		break;
 	case L('l', 'v'): // latvian
 	{
-		static const unsigned char stress_amps_lv[8] = { 17, 13, 20, 20, 20, 22, 22, 21 };
-		static const short stress_lengths_lv[8] = { 180, 130, 210, 210, 0, 0, 210, 210 };
+		static const unsigned char stress_amps_lv[8] = { 14, 10, 10, 8, 0, 0, 20, 15 };
+		static const short stress_lengths_lv[8] = { 180, 180, 180, 160, 0, 0, 230, 180 };
 
 		SetupTranslator(tr, stress_lengths_lv, stress_amps_lv);
 
@@ -1139,7 +1138,7 @@ Translator *SelectTranslator(const char *name)
 		tr->langopts.spelling_stress = 1;
 		tr->charset_a0 = charsets[4]; // ISO-8859-4
 		tr->langopts.numbers = NUM_DECIMAL_COMMA | NUM_OMIT_1_HUNDRED | NUM_DFRACTION_4 | NUM_ORDINAL_DOT;
-		tr->langopts.stress_flags = S_FINAL_DIM_ONLY | S_FINAL_NO_2 | S_EO_CLAUSE1;
+		tr->langopts.stress_flags = S_NO_AUTO_2 | S_FINAL_DIM | S_FINAL_DIM_ONLY | S_EO_CLAUSE1;
 	}
 		break;
 	case L('m', 'k'): // Macedonian

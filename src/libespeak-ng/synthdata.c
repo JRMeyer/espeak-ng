@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2005 to 2014 by Jonathan Duddington
  * email: jonsd@users.sourceforge.net
- * Copyright (C) 2015-2016 Reece H. Dunn
+ * Copyright (C) 2015-2017 Reece H. Dunn
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,10 +26,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wctype.h>
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #include "error.h"
 #include "speech.h"
@@ -38,7 +37,7 @@
 #include "voice.h"
 #include "translate.h"
 
-const char *version_string = "1.48.15  16.Apr.15";
+const char *version_string = PACKAGE_VERSION;
 const int version_phdata  = 0x014801;
 
 // copy the current phoneme table into here
@@ -78,6 +77,8 @@ static espeak_ng_STATUS ReadPhFile(void **ptr, const char *fname, int *size, esp
 
 	sprintf(buf, "%s%c%s", path_home, PATHSEP, fname);
 	length = GetFileLength(buf);
+	if (length < 0) // length == -errno
+		return create_file_error_context(context, -length, buf);
 
 	if ((f_in = fopen(buf, "rb")) == NULL)
 		return create_file_error_context(context, errno, buf);
@@ -144,9 +145,7 @@ espeak_ng_STATUS LoadPhData(int *srate, espeak_ng_ERROR_CONTEXT *context)
 		n_phonemes = p[0];
 		phoneme_tab_list[ix].n_phonemes = p[0];
 		phoneme_tab_list[ix].includes = p[1];
-		pw = (int *)p;
-		phoneme_tab_list[ix].equivalence_tables = Reverse4Bytes(pw[1]);
-		p += 8;
+		p += 4;
 		memcpy(phoneme_tab_list[ix].name, p, N_PHONEME_TAB_NAME);
 		p += N_PHONEME_TAB_NAME;
 		phoneme_tab_list[ix].phoneme_tab_ptr = (PHONEME_TAB *)p;
@@ -445,9 +444,6 @@ static void InvalidInstn(PHONEME_TAB *ph, int instn)
 
 static bool StressCondition(Translator *tr, PHONEME_LIST *plist, int condition, int control)
 {
-	// condition:
-	//	0	if diminished, 1 if unstressed, 2 if not stressed, 3 if stressed, 4 if max stress
-
 	int stress_level;
 	PHONEME_LIST *pl;
 	static int condition_level[4] = { 1, 2, 4, 15 };
@@ -476,11 +472,10 @@ static bool StressCondition(Translator *tr, PHONEME_LIST *plist, int condition, 
 		}
 	}
 
-	if (condition == 4)
+	if (condition == isMaxStress)
 		return stress_level >= pl->wordstress;
 
-	if (condition == 3) {
-		// if stressed
+	if (condition == isStressed) {
 		if (stress_level > 3)
 			return true;
 	} else {
@@ -632,33 +627,28 @@ static bool InterpretCondition(Translator *tr, int control, PHONEME_LIST *plist,
 
 		switch (instn & 0xe0)
 		{
-		case 0x00:
-			// phoneme type, vowel, nasal, fricative, etc
+		case CONDITION_IS_PHONEME_TYPE:
 			return ph->type == data;
-		case 0x20:
-			// place of articulation
+		case CONDITION_IS_PLACE_OF_ARTICULATION:
 			return ((ph->phflags >> 16) & 0xf) == data;
-		case 0x40:
-			// is a bit set in phoneme flags
+		case CONDITION_IS_PHFLAG_SET:
 			return (ph->phflags & (1 << data)) != 0;
-		case 0x80:
+		case CONDITION_IS_OTHER:
 			switch (data)
 			{
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-			case 4:
+			case isDiminished:
+			case isUnstressed:
+			case isNotStressed:
+			case isStressed:
+			case isMaxStress:
 				return StressCondition(tr, plist, data, 0);
-			case 5: // isBreak, Either pause phoneme, or (stop/vstop/vfric not followed by vowel or (liquid in same word))
+			case isBreak:
 				return (ph->type == phPAUSE) || (plist_this->synthflags & SFLAG_NEXT_PAUSE);
-			case 6: // isWordStart
+			case isWordStart:
 				return plist->sourceix != 0;
-			case 7: // notWordStart
-				return plist->sourceix == 0;
-			case 8: // isWordEnd
+			case isWordEnd:
 				return plist[1].sourceix || (plist[1].ph->type == phPAUSE);
-			case 9: // isAfterStress
+			case isAfterStress:
 				if (plist->sourceix != 0)
 					return false;
 				do {
@@ -668,9 +658,9 @@ static bool InterpretCondition(Translator *tr, int control, PHONEME_LIST *plist,
 
 				} while (plist->sourceix == 0);
 				break;
-			case 10: // isNotVowel
+			case isNotVowel:
 				return ph->type != phVOWEL;
-			case 11: // isFinalVowel
+			case isFinalVowel:
 				for (;;) {
 					plist++;
 					if (plist->sourceix != 0)
@@ -678,31 +668,13 @@ static bool InterpretCondition(Translator *tr, int control, PHONEME_LIST *plist,
 					if (plist->ph->type == phVOWEL)
 						return false;
 				}
-			case 12: // isVoiced
+			case isVoiced:
 				return (ph->type == phVOWEL) || (ph->type == phLIQUID) || (ph->phflags & phVOICED);
-			case 13: // isFirstVowel
+			case isFirstVowel:
 				return CountVowelPosition(plist) == 1;
-			case 14: // isSecondVowel
+			case isSecondVowel:
 				return CountVowelPosition(plist) == 2;
-			case 15: // isSeqFlag1
-				// is this preceded  by a sequence if 1 or more vowels which have 'flag1' ?  (lang=hi)
-				if (plist->sourceix != 0)
-					return false; // this is the first phoneme in the word, so no.
-
-				count = 0;
-				for (;;) {
-					plist--;
-					if (plist->ph->type == phVOWEL) {
-						if (plist->ph->phflags & phFLAG1)
-							count++;
-						else
-							break; // stop when we find a vowel without flag1
-					}
-					if (plist->sourceix != 0)
-						break;
-				}
-				return count > 0;
-			case 0x10: // isTranslationGiven
+			case isTranslationGiven:
 				return (plist->synthflags & SFLAG_DICTIONARY) != 0;
 			}
 			break;
@@ -787,7 +759,7 @@ int NumInstnWords(USHORT *prog)
 			// This instruction is followed by addWav(), 2 more words
 			return 4;
 		}
-		if (instn2 == i_CONTINUE)
+		if (instn2 == OPCODE_CONTINUE)
 			return 3;
 		return 2;
 	}
@@ -844,10 +816,10 @@ void InterpretPhoneme(Translator *tr, int control, PHONEME_LIST *plist, PHONEME_
 				// instructions with no operand
 				switch (data)
 				{
-				case i_RETURN:
+				case OPCODE_RETURN:
 					end_flag = 1;
 					break;
-				case i_CONTINUE:
+				case OPCODE_CONTINUE:
 					break;
 				default:
 					InvalidInstn(ph, instn);
@@ -985,7 +957,7 @@ void InterpretPhoneme(Translator *tr, int control, PHONEME_LIST *plist, PHONEME_
 			param_sc = phdata->sound_param[instn2] = (instn >> 4) & 0xff;
 			prog++;
 
-			if (prog[1] != i_CONTINUE) {
+			if (prog[1] != OPCODE_CONTINUE) {
 				if (instn2 < 2) {
 					// FMT() and WAV() imply Return
 					end_flag = 1;
@@ -1008,9 +980,6 @@ void InterpretPhoneme(Translator *tr, int control, PHONEME_LIST *plist, PHONEME_
 			InvalidInstn(ph, instn);
 			break;
 		}
-
-		if (ph->phflags & phSINGLE_INSTN)
-			end_flag = 1;  // this phoneme has a one-instruction program, with an implicit Return
 
 		if ((end_flag == 1) && (n_return > 0)) {
 			// return from called procedure or phoneme

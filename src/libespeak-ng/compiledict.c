@@ -29,7 +29,7 @@
 #include <wctype.h>
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #include "error.h"
 #include "speech.h"
@@ -321,6 +321,8 @@ char *DecodeRule(const char *group_chars, int group_length, char *rule, int cont
 			c = symbols_lg[*rule++ - 'A'];
 		else if (rb == RULE_LETTERGP2) {
 			value = *rule++ - 'A';
+			if (value < 0)
+				value += 256;
 			p[0] = 'L';
 			p[1] = (value / 10) + '0';
 			c = (value % 10) + '0';
@@ -584,7 +586,7 @@ static int compile_line(char *linebuf, char *dict_line, int *hash)
 			ix = utf8_in(&c2, p);
 			if (c2 == 0)
 				break;
-			if (iswupper2(c2))
+			if (iswupper(c2))
 				utf8_out(towlower2(c2), p);
 			else
 				all_upper_case = 0;
@@ -854,6 +856,9 @@ static void copy_rule_string(char *string, int *state_out)
 				case '+':
 					c = RULE_INC_SCORE;
 					break;
+				case '<': // Can't use - as opposite for + because it is used literally as part of word
+					c = RULE_DEC_SCORE;
+					break;
 				case '@':
 					c = RULE_SYLLABLE;
 					break;
@@ -1035,7 +1040,7 @@ static char *compile_rule(char *input)
 			state = 3;
 			p = buf;
 			if (input[ix+1] == ' ') {
-				fprintf(f_log, "%5d: Syntax error. Space after (\n", linenum);
+				fprintf(f_log, "%5d: Syntax error. Space after (, or negative score for previous rule\n", linenum);
 				error_count++;
 			}
 			break;

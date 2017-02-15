@@ -36,8 +36,8 @@ There are two separate methods for translating words into phonemes:
   various other properties. The source files are: `<language>_list` (e.g.
   `en_list`) and optionally `<language>_extra` (e.g. `en_extra`).
 
-These files are compiled into the file `<language>_dict`  in the espeak-data
-directory (e.g. `espeak-data/en_dict`).
+These files are compiled into the file `<language>_dict`  in the espeak-ng-data
+directory (e.g. `espeak-ng-data/en_dict`).
 
 ## Phoneme names
 
@@ -100,20 +100,46 @@ The rules are organized in groups, each starting with a `.group` line:
 * `.group`
   A group for other characters which don't have their own group.
 
+* `.replace`
+  See section [Character Substitution](#character-substitution).
+
 * `.L<nn>`
   Defines a group of letter sequences, any of which can match with `Lnn` in a
   pre or post rule (see below). nn is a 2 digit decimal number in the range 01
   to 94. e.g.:
+  `.L01 b bl br pl pr`
 
-	.L01 b bl br pl pr
+**notes about letter groups**
 
-* `.replace`
-  See section [Character Substitution](#character-substitution).
+There can be up to 200 items in one letter group.
 
 When matching a word, firstly the 2-letter group for the two letters at
 the current position in the word (if such a group exists) is searched,
 and then the single-letter group. The highest scoring rule in either of
 those two groups is used.
+
+`~` Letter in letter group means, that there can be no letter in this group 
+    at the beginning or end of the word.
+
+_For example:_
+
+```
+.L01 ~ b c
+
+.group a
+  L01) a      i  // A
+       a (L01 u  // B
+```
+following rules will match for words:
+
+|Word |Match|Spelling|
+|-----|-----|--------|
+|base |A    |bise    |
+|case |A    |cise    |
+|ace  |A    |ice     |
+|tab  |B    |tub     |
+|mac  |B    |tuc     |
+|tea  |B    |teu     |
 
 ### Rules
 
@@ -173,40 +199,59 @@ translation rules and spoken with English phonemes.
 | `Z`         | A non-alphabetic character. |
 | `%`         | Doubled (placed before a character in \<pre\> and after it in \<post\>. |
 | `/`         | The following character is treated literally. |
+| `\xxx`      | Character is written as by 3 digit octal value of `xxx`|
+| `@`         | One syllable (i.e. at least one vowel or diphthong) |
 
 The sets of letters indicated by `A`, `B`, `C`, `E`, `F` and `G` may be defined
 differently for each language.
 
 Examples of rules:
+```
+        _)  a        A       // "a" at the start of a word
+            a (CC    A       // "a" followed by two consonants
+            a (C%    A       // "a" followed by a double consonant (the same letter twice)
+            a (/%    A       // "a" followed by a percent sign
+        %C) a        A       // "a" preceded by a double consonants
+        @@) bi       bI      // "bi" preceded by at least two syllables
+       @@a) bi       bI      // "bi" preceded by at least 2 syllables and following 'a'
 
-	_)  a         // "a" at the start of a word
-	    a (CC     // "a" followed by two consonants
-	    a (C%     // "a" followed by a double consonant (the same letter twice)
-	    a (/%     // "a" followed by a percent sign
-	%C) a         // "a" preceded by a double consonants
+         @) ly (_S2  lI       // "ly", at end of a word with at least one other
+                              // syllable, is a suffix pronounced [lI].  Remove
+                              // it and retranslate the word.
+        
+         _) un (@P2  %Vn      // "un" at the start of a word is an unstressed
+                              // prefix pronounced [Vn]
+```
+
+Note, that:
+
+1. Matching characters in the \<pre\> part do not affect the syllable counting.
+1. Word end mark can't be used with syllable mark. E.g. `_@)` or `@_` will not work,
+but you can use `@) ... (+` or `... (@+` to make rule with only one syllable prevail
+rule with more syllables.
 
 ### Special characters only in \<pre\>:
 
 | Symbol | Description |
 |--------|-------------|
-| `@`    | Any syllable. |
 | `&`    | A syllable which may be stressed (i.e. is not defined as unstressed). |
-| `V`    | Matches only if a previous word has  indicated that a verb form is expected. |
+| `V`    | Matches only if a previous word has indicated that a verb form is expected. |
+| `xxJ`  | Skip letters until `xx`. Simple `xx` means start of current word. `xx_yy` means `xx` as end of previous and `yy` as start of current word. If necessary, more than one `J` can be used, and `Lxx` group as letter mark. |
 
 e.g.
 
-	@@)  bi      // "bi" preceded by at least two syllables
-	@@a) bi      // "bi" preceded by at least 2 syllables and following 'a'
+          get_J)  a   i      // for `get ada` will say `get adi`
+           setJ)  a   o      // for `set ada` will say `set oda`
+          ge_tJ)  a   i:     // for `ge tada` will say `get adi:`
 
-Note, that matching characters in the \<pre\> part do not affect the
-syllable counting.
 
 ### Special characters only in \<post\>:
 
 | Symbol      | Description |
 |-------------|-------------|
-| `@`         | A vowel follows somewhere in the word. |
-| `+`         | Force an increase in the score in this rule (may be repeated for more effect). |
+| `+`         | Force an increase in the score in this rule by 20 points (may be repeated for more effect). |
+| `<`         | Force a decrease in the score in this rule by 20 points (may be repeated for more effect). |
+| `Jxx`       | Skip letters until `xx`. Simple `xx` means end of current word. `xx_yy` means `xx` as end of current and `yy` as start of next word.  If necessary, more than one `J` can be used, and `Lxx` group as letter mark. |
 | `S<number>` | This number of matching characters are a standard suffix, remove them and retranslate the word. |
 | `P<number>` | This number of matching characters are a standard prefix, remove them and retranslate the word. |
 | `Lnn`       | `nn` is a 2-digit decimal number in the range 01 to 20 Matches with any of the letter sequences which have been defined for letter group `nn` |
@@ -218,20 +263,19 @@ syllable counting.
 
 e.g.
 
-	@) ly (_S2   lI      // "ly", at end of a word with at least one other
-	                     //   syllable, is a suffix pronounced [lI].  Remove
-	                     //   it and retranslate the word.
-	
-	_) un (@P2   %Vn     // "un" at the start of a word is an unstressed
-	                     //   prefix pronounced [Vn]
-	_) un (i     ju:     // ... except in words starting "uni"
-	_) un (inP2  ,Vn     // ... but it is for words starting "unin"
+	_) un (i      ju:    // ... except in words starting "uni"
+	_) un (inP2   ,Vn    // ... but it is for words starting "unin"
+            a (J_get  u      // for `ada get` will say `uda get`
+            a (Jset   e      // for `ada set` will say `ade set`
+            a (Jg_et  u:     // for `adag et` will say `u:dag et`
 
 `S` and `P` must be at the end of the \<post\> string.
 
 `S<number>` may be followed by additional letters (e.g. `S2ei`). Some of
 these are probably specific to English, but similar functions could be
 made for other languages.
+
+`P<number>` may be followed by additional letters (e.g. `P3v`).
 
 | Symbol | Description |
 |--------|-------------|
@@ -243,13 +287,7 @@ made for other languages.
 | `v`    | The suffix means the verb form of pronunciation should be used. |
 | `f`    | The suffix means the next word is likely to be a verb. |
 | `m`    | After this suffix has been removed, additional suffixes may be removed. |
-
-`P<number>` may be followed by additonal letters (e.g. `P3v`).
-
-| Symbol | Description |
-|--------|-------------|
 | `t`    | Determine the stress pattern of the word **before** adding the prefix. |
-| `v`    | The suffix means the verb form of pronunciation should be used. |
 
 ## Pronunciation Dictionary List
 
@@ -306,18 +344,13 @@ brackets, because the two parts are considered as separate words.
 |----------------------|-------------|
 | `_^_<language code>` | Translate using a different language. See explanation above. |
 
-### 3 Flags
+### Flags
 
 A word (or group of words) may be given one or more flags, either
 instead of, or as well as, the phonetic translation.
 
 | Symbol               | Description |
 |----------------------|-------------|
-| `$u`                 | The word is unstressed. In the case of a multi-syllable word, a slight stress is applied according to the default stress rules. |
-| `$u1`                | The word is unstressed, with a slight stress on its 1st syllable. |
-| `$u2`                | The word is unstressed, with a slight stress on its 2nd syllable. |
-| `$u3`                | The word is unstressed, with a slight stress on its 3rd syllable. |
-| `$u+ $u1+ $u2+ $u3+` | As above, but the word has full stress if it's at the end of a clause. |
 | `$1`                 | Primary stress on the 1st syllable. |
 | `$2`                 | Primary stress on the 2nd syllable. |
 | `$3`                 | Primary stress on the 3rd syllable. |
@@ -325,33 +358,43 @@ instead of, or as well as, the phonetic translation.
 | `$5`                 | Primary stress on the 5th syllable. |
 | `$6`                 | Primary stress on the 6th syllable. |
 | `$7`                 | Primary stress on the 7th syllable. |
+| `$u`                 | The word is unstressed. In the case of a multi-syllable word, a slight stress is applied according to the default stress rules. |
+| `$u1`                | The word is unstressed, with a slight stress on its 1st syllable. |
+| `$u2`                | The word is unstressed, with a slight stress on its 2nd syllable. |
+| `$u3`                | The word is unstressed, with a slight stress on its 3rd syllable. |
+| `$u+ $u1+ $u2+ $u3+` | As above, but the word has full stress if it's at the end of a clause. |
 | `$pause`             | Ensure a short pause before this word (eg. for conjunctions such as "and", some prepositions, etc). |
 | `$brk`               | Ensure a very short pause before this word, shorter than $pause (eg. for some prepositions, etc). |
 | `$only`              | The rule does not apply if a prefix or suffix has already been removed. |
-| `$onlys`             | As $only, except that a standard  plural ending is allowed. |
-| `$stem`              | The rule only applies if a suffix has already been removed. |
+| `$onlys`             | As `$only`, except that a standard  plural ending is allowed. |
+| `$stem`              | The rule only applies if a suffix has already been removed (i.e. word had to have suffix before). |
 | `$strend`            | Word is fully stressed if it's at the end of a clause. |
 | `$strend2`           | As $strend, but the word is also stressed if followed only by unstressed word(s). |
 | `$unstressend`       | Word is unstressed if it's at the end of a clause. |
-| `$atend`             | Use this pronunciation if it's at the end of a clause. |
-| `$double`            | Cause a doubling of the initial consonant of the following word (used for Italian). |
-| `$capital`           | Use this pronunciation if the word has initial capital letter (eg. polish v Polish). |
-| `$allcaps`           | Use this pronunciation if the word is all capitals. |
+| `$abbrev`            | This has two meanings. If there is no phoneme string: Speak the word as individual letters, even if it contains a vowel (eg. "abc" should be spoken as "a" "b" "c"). If there is a phoneme string: This word is capitalized because it is an abbreviation and capitalization does not indicate emphasis (if the "emphasize all-caps" is on). |
+| `$double`            | Cause a doubling of the initial consonant of the following word (used e.g. for Italian and Finnish). |
+| `$alt $alt2 .. $alt7`| These 7 groups are language specific. Their use should be described in the language's `*_list` file. `$alt` and `$alt1` are synonyms.|
+| `$combine`           | This word is treated as though it is combined with the following word with a hyphen. This may be subject to further conditions for certain languages. |
 | `$dot`               | Ignore a `.` after this word even when followed by a capital letter (e.g. `Mr.` and `Dr.`). |
 | `$hasdot`            | Use this pronunciation if the word is followed by a dot. (This attribute also implies `$dot`). |
-| `$sentence`          | The rule only applies if the clause includes end-of-sentence (i.e. it is not terminated by a comma). For example, `$atend $sentence` means that the rule only applies at the end of a sentence. |
-| `$abbrev`            | This has two meanings. If there is no phoneme string: Speak the word as individual letters, even if it contains a vowel (eg. "abc" should be spoken as "a" "b" "c"). If there is a phoneme string: This word is capitalized because it is an abbreviation and capitalization does not indicate emphasis (if the "emphasize all-caps" is on). |
-| `$accent`            | Used for the pronunciation of a single alphabetic character. The character name is spoken as the base-letter name plus the accent (diacritic) name. eg. It can be used to specify that "â" is spoken as "a" "circumflex". |
-| `$combine`           | This word is treated as though it is combined with the following word with a hyphen. This may be subject to further conditions for certain languages. |
-| `$alt $alt2 $alt3`   | These are language specific. Their use should be described in the language's `*_list` file. |
-| `$verb`              | Use this pronunciation if it's a verb. |
-| `$noun`              | Use this pronunciation if it's a noun. |
-| `$past`              | Use this pronunciation if it's past tense. |
+| `$max3`              | Limit to 3 repetitions in pronunciation.|
+| `$text`              | Word translates to replacement text, not phonemes.|
 | `$verbf`             | The following word is probably is a verb. |
 | `$verbsf`            | The following word is probably is a if it has an "s" suffix. |
 | `$nounf`             | The following word is probably not a verb. |
 | `$pastf`             | The following word is probably past tense. |
+| `$verb`              | Use this pronunciation if it's a verb, i.e. previously processed word had `$verbf` or `$verbsf` set.|
+| `$noun`              | Use this pronunciation if it's a noun, i.e. previously processed word had `$nounf` set.|
+| `$past`              | Use this pronunciation if it's past tense, i.e. previously processed word had `$pastf` set.|
 | `$verbextend`        | Extend the influence of `$verbf` and `$verbsf`. |
+| `$capital`           | Use this pronunciation if the word has initial capital letter (eg. polish v Polish). |
+| `$allcaps`           | Use this pronunciation if the word is all capitals. |
+| `$accent`            | Used for the pronunciation of a single alphabetic character. The character name is spoken as the base-letter name plus the accent (diacritic) name. e.g. It can be used to specify that "â" is spoken as "a" "circumflex". |
+| `$accent_before`     | used with accent names, say this accent name before the letter name. |
+| `$atstart`           | Use this pronunciation if it's at the start of a clause. |
+| `$atend`             | Use this pronunciation if it's at the end of a clause. |
+| `$sentence`          | The rule only applies if the clause includes end-of-sentence (i.e. terminator is {. ? !} not {, ; :}). For example, `$atend $sentence` means that the rule only applies at the end of a sentence. |
+| `$native`            | Not used, if switched to other translation. |
 
 The last group are probably English specific, but something similar may
 be useful in other languages. They are a crude attempt to improve the
@@ -390,7 +433,7 @@ This feature cannot be used for the special entries in the `*_list` files which
 start with an underscore, such as numbers.
 
 Currently `textmode` entries are only recognized for complete words, and
-not for for stems from which a prefix or suffix has been removed (e.g.
+not for stems from which a prefix or suffix has been removed (e.g.
 the word "coughs" would not match the example above).
 
 ## Conditional Rules
@@ -403,7 +446,7 @@ specify different pronunciations for different variants of a language
 Conditional rules have `?` and a condition number at the start if
 the line in the `*_rules` or `*_list` file. This means that the rule
 only applies of that condition number is specified in a `dictrules`
-line in the [voice file](voices.md).
+line in the [voice file](voices.md#dictrules).
 
 If the rule starts with `?!` then the rule only applies if the
 condition number is `not` specified in the voice file. e.g.
@@ -444,7 +487,7 @@ each language. The number fragments are given in the `*_list` file.
 | `_0M3`        | The word for 1,000,000,000. |
 | `_1M1` `_2M1` | Special pronunciation for one thousand, two thousand, etc, if needed. |
 | `_0and`       | Word for `and` when speaking numbers (e.g. `two hundred and twenty`). |
-| `_dpt`        | Word spoken for the decimnal point/comma. |
+| `_dpt`        | Word spoken for the decimal point/comma. |
 | `_dpt2`       | Word spoken (if any) at the end of all the digits after a decimal point. |
 
 ## Character Substitution

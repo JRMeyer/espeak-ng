@@ -28,7 +28,7 @@
 #include <wctype.h>
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #include "speech.h"
 #include "phoneme.h"
@@ -363,7 +363,7 @@ int IsAlpha(unsigned int c)
 		0
 	};
 
-	if (iswalpha2(c))
+	if (iswalpha(c))
 		return 1;
 
 	if (c < 0x300)
@@ -530,8 +530,10 @@ int utf8_nbytes(const char *buf)
 
 int utf8_in2(int *c, const char *buf, int backwards)
 {
-	// Read a unicode characater from a UTF8 string
+	// Reads a unicode characater from a UTF8 string
 	// Returns the number of UTF8 bytes used.
+	// c: holds integer representation of multibyte character
+	// buf: position of buffer is moved, if character is read
 	// backwards: set if we are moving backwards through the UTF8 string
 
 	int c1;
@@ -569,8 +571,28 @@ int utf8_in2(int *c, const char *buf, int backwards)
 #pragma GCC visibility push(default)
 int utf8_in(int *c, const char *buf)
 {
-	// Read a unicode characater from a UTF8 string
-	// Returns the number of UTF8 bytes used.
+	/* Read a unicode characater from a UTF8 string
+	 * Returns the number of UTF8 bytes used.
+	 * buf: position of buffer is moved, if character is read
+	 * c: holds integer representation of multibyte character by
+	 * skipping UTF-8 header bits of bytes in following way:
+	 * 2-byte character "ā":
+	 * hex            binary
+	 * c481           1100010010000001
+	 *    |           11000100  000001
+	 *    V              \    \ |    |
+	 * 0101           0000000100000001
+	 * 3-byte character "ꙅ":
+	 * ea9985 111010101001100110000101
+	 *            1010  011001  000101
+	 *    |       +  +--.\   \  |    |
+	 *    V        `--.  \`.  `.|    |
+	 *   A645         0001001101000101
+	 * 4-byte character "𠜎":
+	 * f0a09c8e 11110000101000001001110010001110
+	 *    V          000  100000  011100  001110
+	 *   02070e         000000100000011100001110
+	 */
 	return utf8_in2(c, buf, 0);
 }
 #pragma GCC visibility pop
@@ -588,7 +610,7 @@ int IsAllUpper(const char *word)
 	int c;
 	while ((*word != 0) && !isspace2(*word)) {
 		word += utf8_in(&c, word);
-		if (!iswupper2(c))
+		if (!iswupper(c))
 			return 0;
 	}
 	return 1;
@@ -675,85 +697,6 @@ static int CheckDottedAbbrev(char *word1)
 }
 
 extern char *phondata_ptr;
-
-int ChangeEquivalentPhonemes(Translator *tr, int lang2, char *phonemes)
-{
-	// tr:  the original language
-	// lang2:  phoneme table number for the temporary language
-	// phonemes: the phonemes to be replaced
-
-	int ix;
-	int len;
-	char phon;
-	char *p;
-	unsigned char *pb;
-	char *eqlist;
-	char *p_out;
-	char *p_in;
-	int remove_stress = 0;
-	char phonbuf[N_WORD_PHONEMES];
-
-	// has a phoneme equivalence table been specified for this language pair?
-	if ((ix = phoneme_tab_list[tr->phoneme_tab_ix].equivalence_tables) == 0)
-		return 0;
-
-	pb = (unsigned char *)&phondata_ptr[ix];
-
-	for (;;) {
-		if (pb[0] == 0)
-			return 0; // table not found
-
-		if (pb[0] == lang2)
-			break;
-
-		len = (pb[2] << 8) + pb[3]; // size of this table in words
-		pb += (len * 4);
-	}
-	remove_stress = pb[1];
-
-	if (option_phonemes & espeakPHONEMES_TRACE) {
-		DecodePhonemes(phonemes, phonbuf);
-		fprintf(f_trans, "(%s) %s  -> (%s) ", phoneme_tab_list[lang2].name, phonbuf, phoneme_tab_list[tr->phoneme_tab_ix].name);
-	}
-
-	p_in = phonemes;
-	eqlist = (char *)&pb[8];
-	p_out = phonbuf;
-
-	while ((phon = *p_in++) != 0) {
-		if (remove_stress && ((phon & 0xff) < phonSTRESS_PREV))
-			continue; // remove stress marks
-
-		// is there a translation for this phoneme code?
-		p = eqlist;
-		while (*p != 0) {
-			len = strlen(&p[1]);
-			if (*p == phon) {
-				strcpy(p_out, &p[1]);
-				p_out += len;
-				break;
-			}
-			p += (len + 2);
-		}
-		if (*p == 0) {
-			// no translation found
-			*p_out++ = phon;
-		}
-	}
-	*p_out = 0;
-
-	if (remove_stress)
-		SetWordStress(tr, phonbuf, NULL, -1, 0);
-
-	strcpy(phonemes, phonbuf);
-
-	if (option_phonemes & espeakPHONEMES_TRACE) {
-		SelectPhonemeTable(tr->phoneme_tab_ix);
-		DecodePhonemes(phonemes, phonbuf);
-		fprintf(f_trans, "%s\n\n", phonbuf);
-	}
-	return 1;
-}
 
 int TranslateWord(Translator *tr, char *word_start, WORD_TAB *wtab, char *word_out)
 {
@@ -961,7 +904,7 @@ int TranslateWord(Translator *tr, char *word_start, WORD_TAB *wtab, char *word_o
 			}
 		}
 
-		if ((wflags & FLAG_ALL_UPPER) && (word_length > 1) && iswalpha2(first_char)) {
+		if ((wflags & FLAG_ALL_UPPER) && (word_length > 1) && iswalpha(first_char)) {
 			if ((option_tone_flags & OPTION_EMPHASIZE_ALLCAPS) && !(dictionary_flags[0] & FLAG_ABBREV)) {
 				// emphasize words which are in capitals
 				emphasize_allcaps = FLAG_EMPHASIZED;
@@ -1388,7 +1331,7 @@ int TranslateWord(Translator *tr, char *word_start, WORD_TAB *wtab, char *word_o
 			tr->expect_past--;
 	}
 
-	if ((word_length == 1) && (tr->translator_name == L('e', 'n')) && iswalpha2(first_char) && (first_char != 'i')) {
+	if ((word_length == 1) && (tr->translator_name == L('e', 'n')) && iswalpha(first_char) && (first_char != 'i')) {
 		// English Specific !!!!
 		// any single letter before a dot is an abbreviation, except 'I'
 		dictionary_flags[0] |= FLAG_ALLOW_DOT;
@@ -1644,7 +1587,7 @@ static int TranslateWord2(Translator *tr, char *word, WORD_TAB *wtab, int pre_pa
 			while (*p2 != ' ') p2++;
 
 			utf8_in(&c_word2, p2+1); // first character of the next word;
-			if (!iswalpha2(c_word2))
+			if (!iswalpha(c_word2))
 				ok = 0;
 
 			if (ok != 0) {
@@ -1722,11 +1665,6 @@ static int TranslateWord2(Translator *tr, char *word, WORD_TAB *wtab, int pre_pa
 				p[0] = phonSCHWA; // just say something
 				p[1] = phonSCHWA;
 				p[2] = 0;
-			}
-
-			if (ChangeEquivalentPhonemes(tr, switch_phonemes, (char *)p)) {
-				// Phonemes have been converted from the foreign language to the native language
-				switch_phonemes = -1;
 			}
 
 			if (switch_phonemes == -1) {
@@ -2019,7 +1957,7 @@ static int SubstituteChar(Translator *tr, unsigned int c, unsigned int next_in, 
 
 	// there is a list of character codes to be substituted with alternative codes
 
-	if (iswupper2(c_lower = c)) {
+	if (iswupper(c_lower = c)) {
 		c_lower = towlower2(c);
 		upper_case = 1;
 	}
@@ -2046,14 +1984,14 @@ static int SubstituteChar(Translator *tr, unsigned int c, unsigned int next_in, 
 		// there is a second character to be inserted
 		// don't convert the case of the second character unless the next letter is also upper case
 		c2 = new_c >> 16;
-		if (upper_case && iswupper2(next_in))
-			c2 = towupper2(c2);
+		if (upper_case && iswupper(next_in))
+			c2 = towupper(c2);
 		*insert = c2;
 		new_c &= 0xffff;
 	}
 
 	if (upper_case)
-		new_c = towupper2(new_c);
+		new_c = towupper(new_c);
 
 	*wordflags |= FLAG_CHAR_REPLACED;
 	return new_c;
@@ -2108,7 +2046,7 @@ static int TranslateChar(Translator *tr, char *ptr, int prev_in, unsigned int c,
 	case L('n', 'l'):
 		// look for 'n  and replace by a special character (unicode: schwa)
 
-		if (!iswalpha2(prev_in)) {
+		if (!iswalpha(prev_in)) {
 			utf8_in(&next2, &ptr[1]);
 
 			if ((c == '\'') && IsSpace(next2)) {
@@ -2429,8 +2367,13 @@ void *TranslateClause(Translator *tr, FILE *f_text, const void *vp_input, int *t
 					c = ' '; // terminate digit string with a space
 					space_inserted = 1;
 				}
-			} else {
-				if (prev_in != ',') {
+			} else { // Prev output is not digit
+				if (prev_in == ',') {
+					// Workaround for several consecutive commas —
+					// replace current character with space
+					if (c == ',')
+						c = ' ';
+				} else {
 					decimal_sep_count = 0;
 				}
 			}
@@ -2457,7 +2400,7 @@ void *TranslateClause(Translator *tr, FILE *f_text, const void *vp_input, int *t
 						if (!IsBracket(prev_out)) // ?? perhaps only set FLAG_NOSPACE for . - /  (hyphenated words, URLs, etc)
 							next_word_flags |= FLAG_NOSPACE;
 					} else {
-						if (iswupper2(c))
+						if (iswupper(c))
 							word_flags |= FLAG_FIRST_UPPER;
 
 						if ((prev_out == ' ') && iswdigit(sbuf[ix-2]) && !iswdigit(prev_in)) {
@@ -2487,7 +2430,7 @@ void *TranslateClause(Translator *tr, FILE *f_text, const void *vp_input, int *t
 					}
 				}
 
-				if (iswupper2(c)) {
+				if (iswupper(c)) {
 					c = towlower2(c);
 
 					if ((j = tr->langopts.param[LOPT_CAPS_IN_WORD]) > 0) {
@@ -2497,7 +2440,7 @@ void *TranslateClause(Translator *tr, FILE *f_text, const void *vp_input, int *t
 							syllable_marked = 1;
 						}
 					} else {
-						if (iswlower2(prev_in)) {
+						if (iswlower(prev_in)) {
 							// lower case followed by upper case in a word
 							if (UpperCaseInWord(tr, &sbuf[ix], c) == 1) {
 								// convert to lower case and continue
@@ -2507,7 +2450,7 @@ void *TranslateClause(Translator *tr, FILE *f_text, const void *vp_input, int *t
 								space_inserted = 1;
 								prev_in_save = c;
 							}
-						} else if ((c != ' ') && iswupper2(prev_in) && iswlower2(next_in)) {
+						} else if ((c != ' ') && iswupper(prev_in) && iswlower(next_in)) {
 							int next2_in;
 							utf8_in(&next2_in, &source[source_index + next_in_nbytes]);
 

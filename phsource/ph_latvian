@@ -7,131 +7,138 @@
 //  ENDIF
 
 phoneme a
-  vowel starttype #a endtype #a
+  vwl starttype #a endtype #a
   length 120
-  FMT(vwl_lv/a, 90)           // adjusted from aa_3
+  FMT(vwl_lv/a, 100)           // adjusted from aa_3
 endphoneme
 
 phoneme a:
-  vowel starttype #a endtype #a
+  vwl starttype #a endtype #a
   length 300
-  long
-  FMT(vwl_lv/aa, 100)           
+  lng
+  FMT(vwl_lv/aa, 90)           
 endphoneme
 
 phoneme E
-  vowel starttype #e endtype #e
+  vwl starttype #e endtype #e
   length 120
   FMT(vwl_lv/e2, 100)
 endphoneme
 
 phoneme E:
-  vowel starttype #e endtype #e
+  vwl starttype #e endtype #e
   length 300
   FMT(vwl_lv/ee2, 100)
 endphoneme
 
 phoneme e
-  vowel starttype #e endtype #e
+  vwl starttype #e endtype #e
   length 120
   FMT(vwl_lv/e, 100)  // other alternative e_5
 endphoneme
 
 phoneme e:
-  vowel starttype #e endtype #e
+  vwl starttype #e endtype #e
   length 300
   FMT(vwl_lv/ee, 100) // other alternative e_8
 endphoneme
 
 phoneme i
-  vowel starttype #i endtype #i
+  vwl starttype #i endtype #i
   length 120
   FMT(vwl_lv/i, 110) // was i_6
 endphoneme
 
 phoneme i:
-  vowel starttype #i endtype #i
+  vwl starttype #i endtype #i
   length 300
-  FMT(vwl_lv/ii, 110) // was i_7
+  FMT(vwl_lv/ii, 100) // was i_7
 endphoneme
 
 phoneme o
-  vowel starttype #o endtype #o
+  vwl starttype #o endtype #o
   length 120
   FMT(vwl_lv/o, 90)
 endphoneme
 
 phoneme o:
-  vowel starttype #o endtype #o
+  vwl starttype #o endtype #o
   length 300
   FMT(vwl_lv/oo, 75)
 endphoneme
 
 phoneme u
-  vowel starttype #u endtype #u
+  vwl starttype #u endtype #u
   length 120
   FMT(vwl_lv/u, 140)
 endphoneme
 
 phoneme u:
-  vowel starttype #u endtype #u
+  vwl starttype #u endtype #u
   length 300
   FMT(vwl_lv/uu, 120)
 endphoneme
 
 phoneme ai
-  vowel starttype #a endtype #i
+  vwl starttype #a endtype #i
   length 250
-  long
+  lng
   FMT(vdiph/aai, 100)
 endphoneme
 
 phoneme au
-  vowel starttype #a endtype #u
-  length 250
-  long
+  vwl starttype #a endtype #u
+  length 275
+  lng
   FMT(vdiph/aau, 100)
 endphoneme
 
 phoneme ei
-  vowel starttype #e endtype #i
+  vwl starttype #e endtype #i
   length 250
-  long
+  lng
   FMT(vdiph/eei_2, 100)
 endphoneme
 
 phoneme ie
-  vowel starttype #i endtype #e
+  vwl starttype #i endtype #e
   length 250
-  long
+  lng
   FMT(vdiph2/ie_2, 100)
 endphoneme
 
 phoneme iu
-  vowel starttype #i endtype #u
+  vwl starttype #i endtype #u
   length 250
-  long
+  lng
   FMT(vdiph2/iu_2, 100)
 endphoneme
 
 phoneme ui
-  vowel starttype #u endtype #i
+  vwl starttype #u endtype #i
   length 250
-  long
+  lng
   FMT(vdiph/ui, 100)
 endphoneme
 
 phoneme uo
-  vowel starttype #u endtype #a
-  length 250
-  long
+  vwl starttype #u endtype #a
+  length 260
+  lng
+  FMT(vdiph2/uaa, 100)
+endphoneme
+
+phoneme o`       // shorter version of uo
+  vwl starttype #u endtype #a
+  length 180
+  lng
   FMT(vdiph2/uaa, 100)
 endphoneme
 
 phoneme oi
-  vowel starttype #o endtype #i
+  vwl starttype #o endtype #i
   length 250
-  long
+  lng
   FMT(vdiph/ooi, 100)
 endphoneme
 
@@ -144,24 +151,39 @@ phoneme ts
 endphoneme
 
 phoneme tS
-  vls pla afr sibilant
+  vls pla afr sib
   voicingswitch dZ
   lengthmod 2
   length 80
   WAV(ustop/tsh,40)
 endphoneme
 
-phoneme R
-  liquid
-  trill
+phoneme n-
+  vwl starttype #a endtype #a
+  ipa nU+0329
+  lengthmod 4
+  length 120
+  FMT(n/n-syl)
+endphoneme
+
+phoneme R // Latvian hard r
+  liquid trl
   lengthmod 6
   Vowelin  f1=0  f2=1700 -300 300  f3=-300 80
   Vowelout f1=2  f2=1700 -300 300  f3=-300 80 brk
-FMT(r3/r_trill) addWav(r3/r_trill.wav, 50)
+FMT(r3/r_trill) addWav(r3/r_trill.wav, 60)
+endphoneme
+
+phoneme r // Latvian soft r
+  liquid trl
+  lengthmod 6
+  Vowelin  f1=0  f2=1700 -300 300  f3=-300 80
+  Vowelout f1=2  f2=1700 -300 300  f3=-300 80 brk
+  FMT(j/j_) addWav(r3/r_trill.wav, 25)
 endphoneme
 
 phoneme t
-  vls alv stop //lengthenstop
+  vls alv stp //lengthenstop
   lengthmod 1
   voicingswitch d
   IF nextPh(isPause2) THEN
@@ -171,7 +193,7 @@ phoneme t
 endphoneme
 
 phoneme p
-  vls blb stop
+  vls blb stp
   lengthmod 2
   voicingswitch b
   Vowelin  f1=0  f2=1000 -50 -100  f3=-200 80
@@ -186,7 +208,7 @@ phoneme p
 endphoneme
 
 phoneme k
-  vls vel stop
+  vls vel stp
   lengthmod 2
   voicingswitch g
   Vowelin f1=0  f2=2300 200 400  f3=-100 80
@@ -204,10 +226,82 @@ phoneme k
 endphoneme
 
 phoneme c
-  vls pal stop palatal
+  vls pal stp pzd
   voicingswitch J
-  lengthmod 2
-  WAV(ustop/c, 90)
+  WAV(ustop/c, 80)
+endphoneme
+
+phoneme D   // louder and shorter version of d
+  vcd alv stp
+  voicingswitch t
+  length 10
+  lengthmod 5
+  Vowelin f1=1  f2=1700 -300 300  f3=-100 80
+  Vowelout f1=2 f2=1700 -300 300  f3=-100 80 brk
+
+  IF PreVoicing THEN
+    FMT(d/xd, 110)
+  ENDIF
+
+  IF nextPh(isPause2) THEN
+    FMT(d/d_, 120)  addWav(x/d_,110)
+  ENDIF
+
+  FMT(d/d, 110) addWav(x/d,110)
+endphoneme
+
+
+phoneme z`  // Shortened version of z for diphthong dz
+  vcd alv frc sib
+  voicingswitch s
+  length 10
+  lengthmod 6
+  Vowelout f1=0  f2=1700 -300 300  f3=-100 60  len=50
+
+  IF KlattSynth THEN
+    Vowelin f1=0 f2=1390 -300 300 f3=0 0
+    Vowelout f1=1  f2=1390 -300 300  f3=-100 60  len=50 brk
+  ENDIF
+
+  IF nextPh(isPause2) THEN
+    length 20
+    FMT(voc/z_, 120) addWav(ufric/s_, 95)
+  ENDIF
+  FMT(voc/z, 110) addWav(ufric/s_, 100)
+endphoneme
+
+phoneme Z` // Shortened version of Z for diphthong dZ
+  vcd pla frc sib
+  voicingswitch S
+  length 30
+  lengthmod 6
+  Vowelin  f1=0  f2=2000 0 300  f3=-200 80
+  Vowelout f1=2  f2=2000 0 300  f3=-200 80 brk
+
+  IF KlattSynth THEN
+    IF nextPh(isPause2) THEN
+      FMT(klatt/zh_, 70) addWav(vocw/zh, 70)
+    ENDIF
+    FMT(klatt/zh) addWav(vocw/zh, 130)
+  ENDIF
+
+  IF nextPh(isPause2) THEN
+    FMT(voc/zh_, 80) addWav(vocw/zh, 70)
+  ENDIF
+  FMT(voc/zh) addWav(vocw/zh, 130)
+endphoneme
+
+phoneme >  // lengthen previous vowel less than using ":"
+  virtual
+  length 30 // it actually seems working shorter, but anyway...
+endphoneme
+
+phoneme } // Tiny, 5ms non-linked pause (used between phonemes in word)
+  pause
+//  starttype _ endtype _
+//  lengthmod 1
+  nolink
+  length 5
 endphoneme
 
 // TODO should use this with correct lengthening
@@ -220,7 +314,7 @@ endphoneme
 //endphoneme
 
 phoneme s
-  vls alv frc sibilant
+  vls alv frc sib
   voicingswitch z
   lengthmod 3
   Vowelin  f1=0  f2=1700 -300 300  f3=-100 80

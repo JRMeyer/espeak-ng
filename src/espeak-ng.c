@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,7 +31,7 @@
 #include <time.h>
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #ifndef PROGRAM_NAME
 #define PROGRAM_NAME "espeak-ng"
@@ -68,7 +69,7 @@ static const char *help_text =
     "-s <integer>\n"
     "\t   Speed in approximate words per minute. The default is 175\n"
     "-v <voice name>\n"
-    "\t   Use voice file of this name from espeak-data/voices\n"
+    "\t   Use voice file of this name from espeak-ng-data/voices\n"
     "-w <wave file name>\n"
     "\t   Write speech to this WAV file, rather than speaking it directly\n"
     "-b\t   Input text encoding, 1=UTF8, 2=8 bit, 4=16 bit \n"
@@ -88,11 +89,11 @@ static const char *help_text =
     "\t   Compile an MBROLA voice\n"
     "--compile-intonations\n"
     "\t   Compile the intonation data\n"
-    "--compile-phonemes\n"
-    "\t   Compile the phoneme data\n"
+    "--compile-phonemes=<phsource-dir>\n"
+    "\t   Compile the phoneme data using <phsource-dir> or the default phsource directory\n"
     "--ipa      Write phonemes to stdout using International Phonetic Alphabet\n"
     "--path=\"<path>\"\n"
-    "\t   Specifies the directory containing the espeak-data directory\n"
+    "\t   Specifies the directory containing the espeak-ng-data directory\n"
     "--pho      Write mbrola phoneme data (.pho) to stdout or to the file in --phonout\n"
     "--phonout=\"<filename>\"\n"
     "\t   Write phoneme output from -x -X --ipa and --pho to this file\n"
@@ -108,10 +109,11 @@ static const char *help_text =
     "--tie=<character>\n"
     "\t   Use a tie character within multi-letter phoneme names.\n"
     "\t   Default is U+361, z means ZWJ character.\n"
-    "--version  Shows version number and date, and location of espeak-data\n"
+    "--version  Shows version number and date, and location of espeak-ng-data\n"
     "--voices=<language>\n"
     "\t   List the available voices for the specified language.\n"
-    "\t   If <language> is omitted, then list all voices.\n";
+    "\t   If <language> is omitted, then list all voices.\n"
+    "-h, --help Show this help.\n";
 
 int samplerate;
 int quiet = 0;
@@ -256,12 +258,7 @@ static int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
 {
 	char fname[210];
 
-	if (quiet) return 0; // -q quiet mode
-
-	if (wav == NULL) {
-		CloseWavFile();
-		return 0;
-	}
+	if (quiet || wav == NULL) return 0;
 
 	while (events->type != 0) {
 		if (events->type == espeakEVENT_SAMPLERATE) {
@@ -300,7 +297,7 @@ static void PrintVersion()
 	const char *path_data;
 	espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, 0, NULL, espeakINITIALIZE_DONT_EXIT);
 	version = espeak_Info(&path_data);
-	printf("eSpeak text-to-speech: %s  Data at: %s\n", version, path_data);
+	printf("eSpeak NG text-to-speech: %s  Data at: %s\n", version, path_data);
 }
 
 int main(int argc, char **argv)
@@ -323,14 +320,14 @@ int main(int argc, char **argv)
 		{ "tie",     optional_argument, 0, 0x10d },
 		{ "compile-mbrola", optional_argument, 0, 0x10e },
 		{ "compile-intonations", no_argument, 0, 0x10f },
-		{ "compile-phonemes", no_argument, 0, 0x110 },
+		{ "compile-phonemes", optional_argument, 0, 0x110 },
 		{ 0, 0, 0, 0 }
 	};
 
 	FILE *f_text = NULL;
 	char *p_text = NULL;
 	FILE *f_phonemes_out = stdout;
-	char *data_path = NULL; // use default path for espeak-data
+	char *data_path = NULL; // use default path for espeak-ng-data
 
 	int option_index = 0;
 	int c;
@@ -547,7 +544,12 @@ int main(int argc, char **argv)
 		{
 			espeak_ng_InitializePath(data_path);
 			espeak_ng_ERROR_CONTEXT context = NULL;
-			espeak_ng_STATUS result = espeak_ng_CompilePhonemeData(22050, stdout, &context);
+			espeak_ng_STATUS result;
+			if (optarg2) {
+				result = espeak_ng_CompilePhonemeDataPath(22050, optarg2, NULL, stdout, &context);
+			} else {
+				result = espeak_ng_CompilePhonemeData(22050, stdout, &context);
+			}
 			if (result != ENS_OK) {
 				espeak_ng_PrintStatusCodeMessage(result, stderr, context);
 				espeak_ng_ClearErrorContext(&context);
@@ -596,7 +598,7 @@ int main(int argc, char **argv)
 	}
 
 	if (voicename[0] == 0)
-		strcpy(voicename, "default");
+		strcpy(voicename, "en");
 
 	result = espeak_ng_SetVoiceByName(voicename);
 	if (result != ENS_OK) {
@@ -652,11 +654,19 @@ int main(int argc, char **argv)
 				flag_stdin = 2;
 		}
 	} else {
+		struct stat st;
+		if (stat(filename, &st) != 0) {
+			fprintf(stderr, "Failed to stat() file '%s'\n", filename);
+			exit(EXIT_FAILURE);
+		}
 		filesize = GetFileLength(filename);
 		f_text = fopen(filename, "r");
 		if (f_text == NULL) {
 			fprintf(stderr, "Failed to read file '%s'\n", filename);
 			exit(EXIT_FAILURE);
+		}
+		if (S_ISFIFO(st.st_mode)) {
+			flag_stdin = 2;
 		}
 	}
 
@@ -665,18 +675,20 @@ int main(int argc, char **argv)
 		size = strlen(p_text);
 		espeak_Synth(p_text, size+1, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
 	} else if (flag_stdin) {
-		int max = 1000;
+		size_t max = 1000;
 		if ((p_text = (char *)malloc(max)) == NULL) {
 			espeak_ng_PrintStatusCodeMessage(ENOMEM, stderr, NULL);
 			exit(EXIT_FAILURE);
 		}
 
 		if (flag_stdin == 2) {
-			// line by line input on stdin
-			while (fgets(p_text, max, stdin) != NULL) {
+			// line by line input on stdin or from FIFO
+			while (fgets(p_text, max, f_text) != NULL) {
 				p_text[max-1] = 0;
 				espeak_Synth(p_text, max, 0, POS_CHARACTER, 0, synth_flags, NULL, NULL);
-
+			}
+			if (f_text != stdin) {
+				fclose(f_text);
 			}
 		} else {
 			// bulk input on stdin
@@ -686,13 +698,17 @@ int main(int argc, char **argv)
 					break;
 				p_text[ix++] = (char)c;
 				if (ix >= (max-1)) {
-					max += 1000;
-					char *new_text = (char *)realloc(p_text, max);
+					char *new_text = NULL;
+					if (max <= SIZE_MAX - 1000) {
+						max += 1000;
+						new_text = (char *)realloc(p_text, max);
+					}
 					if (new_text == NULL) {
 						free(p_text);
 						espeak_ng_PrintStatusCodeMessage(ENOMEM, stderr, NULL);
 						exit(EXIT_FAILURE);
 					}
+					p_text = new_text;
 				}
 			}
 			if (ix > 0) {
@@ -720,5 +736,8 @@ int main(int argc, char **argv)
 
 	if (f_phonemes_out != stdout)
 		fclose(f_phonemes_out);
+
+	CloseWavFile();
+	espeak_ng_Terminate();
 	return 0;
 }

@@ -1,42 +1,48 @@
 # Adding or Improving a Language
 
-- [Language Code](#language-code)
-  - [Language](#language)
-  - [Accent](#accent)
+- [Considerations Before Preparation](#considerations-before-preparation)
+  - [Language Tag](#language-tag)
   - [Language Family](#language-family)
-- [Language Files](#language-files)
-- [Voice File](#voice-file)
-- [Phoneme Definition File](#phoneme-definition-file)
-- [Dictionary Files](#dictionary-files)
+  - [Accent (optional)](#accent-optional)
+- [Configuration Files](#configuration-files)
+  - [Makefile.am file](#makefileam-file)
+  - [Phonemes file](#phonemes-file)
+  - [Language File](#language-file)
+  - [Phoneme Definition File](#phoneme-definition-file)
+  - [Dictionary Files](#dictionary-files)
 - [Program Code](#program-code)
 - [Compiling Rules File for Debugging](#compiling-rules-file-for-debugging)
 - [Improving a Language](#improving-a-language)
 
 ----------
 
-Most of the work doesn't need any programming knowledge. Just an
-understanding of the language, an awareness of its features, patience
-and attention to detail. Wikipedia is a good source of basic phonetic
-information, e.g.
-[http://en.wikipedia.org/wiki/Vowel](http://en.wikipedia.org/wiki/Vowel).
+## Considerations Before Preparation
+
+
+Most of the work doesn't need any programming knowledge, but, to get immediate
+feedback, by running and testing eSpeak,
+you should be able to [build](../README.md#building) it.
+
+You also have to understand the language main concepts, be aware of its features,
+and have to have patience and attention to detail.
+Wikipedia is a good source of basic phonetic information, e.g. about [vowels]
+(http://en.wikipedia.org/wiki/Vowel) and [consonants](https://en.wikipedia.org/wiki/Consonant).
 
 In many cases it should be fairly easy to add a rough implementation of
 a new language, hopefully enough to be intelligible. After that it's a
 gradual process of improvement.
 
-## Language Code
+### Language Tag
 
 The language is identified using the
-[BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) language tag. The
-list of valid tags originate from various standards and have been combined
+[BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) language tag.
+The list of valid tags originate from various standards and have been combined
 into the
 [IANA Language Subtag Registry](http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry).
 
-### Language
-
 These language tags are used to specify the language, such as:
 
-*  `de` (German) -- The [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1)
+*  `fr` (French) -- The [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1)
    2-letter language code for the language.
 
    __NOTE:__ BCP 47 uses ISO 639-1 codes for languages that are allocated
@@ -51,9 +57,20 @@ These language tags are used to specify the language, such as:
    __NOTE:__ Where the script is the primary script for the language, the script
    tag should be omitted.
 
-### Accent
+### Language Family
 
-The language tags are also used to specify the accent or dialect of a language,
+The languages are grouped by the closest language family the language belongs.
+These language families are defined in
+[ISO 639-5](https://en.wikipedia.org/wiki/ISO_639-5). See also Wikipedia's
+[List of language families] (https://en.wiktionary.org/wiki/Wiktionary:List_of_families)
+for more details.
+
+For example, the Celtic languages (Welsh, Irish Gaelic, Scottish Gaelic, etc.)
+are listed under the `cel` language family code.
+
+### Accent (optional)
+
+If necessary, the language tags are also used to specify the accent or dialect of a language,
 such as:
 
 *  `es-419` (Spanish (Latin America)) -- The
@@ -75,63 +92,100 @@ such as:
    [bcp47-data](https://github.com/rhdunn/bcp47-data) project and a private use
    tag will be defined for that accent.
 
-### Language Family
+## Configuration Files
 
-The voices are grouped by the closest language family the language belongs.
-These language families are defined in
-[ISO 639-5](https://en.wikipedia.org/wiki/ISO_639-5). See also Wikipedia's
-[List of language families] (https://en.wiktionary.org/wiki/Wiktionary:List_of_families)
-for more details.
+To add new language, you have to create or edit following files:
 
-For example, the Celtic languages (Welsh, Irish Gaelic, Scottish Gaelic, etc.)
-are listed under the `cel` language family code.
+|path/file                     |action  |
+|------------------------------|--------|
+| Makefile.am                  |edit    |
+| phsource/phonemes            |edit    |
+| phsource/ph_french           |create  |
+| dictsource/fr_list           |create  |
+| dictsource/fr_rules          |create  |
+| dictsource/fr_extra          |create (optional) |
+| espeak-ng-data/lang/roa/fr   |create  |
 
-## Language Files
+where:
 
-The following files are needed for your language.
+* __french__ is name of the newly created language
+* __fr__ is the code of this language
+* __roa__ is the family of this language
 
-  * `espeak-data/voices/roa/fr`. The voice file. This gives the language name
-    and may set some options.
-  * `phsource/ph_french`. The phoneme definition file. This contains phoneme
-    definitions for the vowels and consonants which the language uses. Usually
-    it will contain mostly vowels. Most consonants will be inherited from the
-    common phoneme definitions in the master phoneme file, `phsource/phonemes`.
-    The master phoneme file needs to be edited to call your new `ph_french` file.
-  * `dictsource/fr_rules`. This contains the spelling-to-phoneme translation
-     rules.
-  * `dictsource/fr_list`. This contains pronunciations for numbers, letter and
-    symbol names, and words with exceptional pronunciations. It also gives
-    attributes such as "unstressed" and "pause" to some common words.
 
-The `fr_rules` and `fr_list` files are compiled to produce the
-`espeak-data/fr_dict` file, which eSpeak uses when it is speaking.
+### Makefile.am File
 
-## Voice File
+`Makefile.am` is build configuration file.
 
-Each language needs a voice file in `espeak-data/voices` grouped by the
+Search for configuration of existing languages (e.g. English)
+and add similar lines for your language in following sections.
+E.g. for French:
+
+	phsource/phonemes.stamp: \
+	...
+	  phsource/ph_french \
+	...
+	
+	dictionaries: \
+	...
+	  espeak-ng-data/fr_dict \
+	...
+	
+	fr: espeak-ng-data/fr_dict
+	dictsource/fr_extra:
+	  touch dictsource/fr_extra
+	espeak-ng-data/fr_dict: src/espeak-ng phsource/phonemes.stamp dictsource/fr_list dictsource/fr_rules dictsource/fr_extra
+	  cd dictsource && ESPEAK_DATA_PATH=$(PWD) LD_LIBRARY_PATH=../src:${LD_LIBRARY_PATH} ../src/espeak-ng --compile=fr && cd ..
+	...
+
+Note, that you don't need to add `fr_extra` reference in the last group, if your language doesn't have this file.
+
+### Phonemes File
+
+Open file `phsource/phonemes` and add following lines into it,
+to make it call your new, e.g. `ph_french` file:
+
+	...
+	phonemetable fr base
+	include ph_french
+	...
+
+### Language File
+
+E.g. `espeak-ng-data/lang/roa/fr` is the language file for French.
+This gives the language name and may set some options.
+
+Each language needs a language file in `espeak-ng-data/lang` grouped by the
 [language family](#language-family). The filename of the default voice for a
 language should be the same as the language code (e.g. `fr` for French).
 
-Details of the contents of voice files are given in [Voices](voices.md).
-
 The simplest voice file would contain just 2 lines to give the language
-name and language code, eg:
+name (from the
+[IANA Language Subtag Registry](https://github.com/rhdunn/bcp47-data/blob/master/language-subtag-registry)
+and language code, e.g.:
 
-	name french
+	name French
 	language fr
 
 This language code specifies which phoneme table and dictionary to use
-(i.e. `phonemetable fr` and `espeak-data/fr_dict`) to be used. If
+(i.e. `phonemetable fr` and `espeak-ng-data/fr_dict`) to be used. If
 needed, these can be overridden by `phonemes` and `dictionary`
 attributes in the voice file. For example you may want to start the
 implementation of a new language by using the phoneme table of an
 existing language.
 
-## Phoneme Definition File
+Details of the contents of language files are given in [Voices](voices.md).
+
+### Phoneme Definition File
+
+E.g. `phsource/ph_french` is the phoneme definition file for French.
+This contains phoneme definitions for the vowels and consonants which the language uses.
+Usually it will contain mostly vowels. Most consonants will be inherited from the
+common phoneme definitions in the _master phoneme file_: `phsource/phonemes`.
 
 You must first decide on the set of phonemes (vowel and consonant
 sounds) for the language. These should be defined in a phoneme
-definition file `ph_xxxx`, where `ph_xxxx` is the name of your
+definition file `ph_french`, where `ph_french` is the name of your
 language. A reference to this file is then included at the end of the
 master phoneme file, `phsource/phonemes`, e.g.:
 
@@ -169,14 +223,37 @@ in eSpeak, together with the available vowel files which can be used to
 define vowel phonemes, will be sufficient. At least for an initial
 implementation.
 
-## Dictionary Files
+### Dictionary Files
+
+There are usually two dictionary files, e.g. for French:
+
+  * `dictsource/fr_list`. This contains pronunciations for numbers, letter and
+    symbol names, and words with exceptional pronunciations. It also gives
+    attributes such as "unstressed" and "pause" to some common words.
+    The `fr_list` file contains:
+
+      * Pronunciations which exceptions to the rules in `fr_rules`, (e.g. foreign
+        names).
+      * Pronunciation of letter names, symbol names, and punctuation names.
+      * Pronunciation of numbers.
+      * Attributes for words. For example, common function words which should not
+        be stressed, or conjunctions which should be preceded by a pause. 
+
+  * `dictsource/fr_rules`. This contains the spelling-to-phoneme translation
+     rules.
+
+Details of the contents of the dictionary files are given in
+[Dictionary](dictionary.md).
+
+The `fr_rules` and `fr_list` files are compiled to produce the
+`espeak-ng-data/fr_dict` file, which eSpeak uses when it is speaking.
 
 Once the language's phonemes have been defined, then pronunciation
 dictionary data can be produced in order to translate the language's
 source text into phonemes. This consists of two source files:
 `fr_rules` (the spelling to phoneme rules) and `fr_list` (an
 exceptions list, and attributes of certain words). The corresponding
-compiled data file is `espeak-data/fr_dict` which is produced from
+compiled data file is `espeak-ng-data/fr_dict` which is produced from
 the `fr_rules` and `fr_list` sources by the command:
 
 	espeak-ng --compile=fr
@@ -184,18 +261,6 @@ the `fr_rules` and `fr_list` sources by the command:
 or by:
 
 	make fr
-
-Details of the contents of the dictionary files are given in
-[Dictionary](dictionary.md).
-
-The `fr_list` file contains:
-
-  * Pronunciations which exceptions to the rules in `fr_rules`, (e.g. foreign
-    names).
-  * Pronunciation of letter names, symbol names, and punctuation names.
-  * Pronunciation of numbers.
-  * Attributes for words. For example, common function words which should not
-    be stressed, or conjunctions which should be preceded by a pause. 
 
 ## Program Code
 
@@ -212,7 +277,7 @@ The function `SetTranslator()` at the start of the source code file
 options. For a new language, you would add its language code and the
 required options in `SetTranslator()`. However, this may not be necessary
 during testing because most of the options can also be set in the voice
-file in espeak-data/voices (see [Voice Files](voices.md)).
+file in espeak-ng-data/lang (see [Voices](voices.md)).
 
 ## Compiling Rules File for Debugging
 
@@ -275,7 +340,7 @@ and what needs to be improved.
 * Make new intonation "tunes" for statements or questions (see
   [Intonation](intonation.md)).
 
-For most of the eSpeak voices, I do not speak or understand the language, and I
+For most of the eSpeak languages, I do not speak or understand the language, and I
 do not know how it should sound. I can only make improvements as a result of
 feedback from speakers of that language. If you want to help to improve a
 language, listen carefully and try to identify individual errors, either in

@@ -26,10 +26,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wctype.h>
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #include "speech.h"
 #include "phoneme.h"
@@ -55,7 +54,7 @@ static int mbr_name_prefix = 0;
 
 espeak_ng_STATUS LoadMbrolaTable(const char *mbrola_voice, const char *phtrans, int *srate)
 {
-	// Load a phoneme name translation table from espeak-data/mbrola
+	// Load a phoneme name translation table from espeak-ng-data/mbrola
 
 	int size;
 	int ix;
@@ -101,6 +100,8 @@ espeak_ng_STATUS LoadMbrolaTable(const char *mbrola_voice, const char *phtrans, 
 	// read eSpeak's mbrola phoneme translation data, eg. en1_phtrans
 	sprintf(path, "%s/mbrola_ph/%s", path_home, phtrans);
 	size = GetFileLength(path);
+	if (size < 0) // size == -errno
+		return -size;
 	if ((f_in = fopen(path, "rb")) == NULL) {
 		int error = errno;
 		close_MBR();

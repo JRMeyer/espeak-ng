@@ -1,11 +1,46 @@
 # editor files:
 
+*~
 .*.swp
+
+# Eclipse project files:
+
+.cproject
+.project
 
 # intermediate build output:
 
 *.o
 *.lo
+
+# android build output:
+
+bin/
+obj/
+gen/
+android/icons/*.png
+
+libttsespeak.so
+
+android/res/raw/espeakdata.zip
+android/res/raw/espeakdata_version
+
+local.properties
+
+# android gradle output:
+
+gradle/
+gradlew
+gradlew.bat
+
+.gradle/
+.idea/
+build/
+espeak.iml
+
+# emscripten output:
+a.out
+a.out.js
 
 # autotools
 
@@ -13,6 +48,7 @@ AUTHORS
 INSTALL
 NEWS
 README
+ChangeLog
 
 .deps/
 .libs/
@@ -53,6 +89,9 @@ src/espeakedit
 src/speak-ng
 
 espeak-ng.pc
+
+espeak-ng-*.tar.gz
+espeak-ng-*.*/
 
 # Windows builds
 
@@ -95,7 +134,20 @@ License.txt
 ReadMe
 Makefile
 
-# espeak-data
+# emscripten files
+
+emscripten/*.out
+emscripten/*.pkl
+emscripten/espeakng_data_package.js
+emscripten/glue.*
+emscripten/js/*.data
+emscripten/js/*.js
+!emscripten/demo.html
+!emscripten/Makefile
+!emscripten/js/demo.js
+!emscripten/js/espeakng.js
+
+# espeak-ng-data
 
 dictsource/*_extra
 dictsource/dict_log
@@ -110,13 +162,13 @@ phsource/error_intonation
 phsource/error_log
 phsource/phonemes.stamp
 
-espeak-data/config
-espeak-data/dictsource
-espeak-data/phsource
-espeak-data/*_dict
-espeak-data/mbrola_ph/*_phtrans
-espeak-data/intonations
-espeak-data/phondata
-espeak-data/phondata-manifest
-espeak-data/phonindex
-espeak-data/phontab
+espeak-ng-data/config
+espeak-ng-data/dictsource
+espeak-ng-data/phsource
+espeak-ng-data/*_dict
+espeak-ng-data/mbrola_ph/*_phtrans
+espeak-ng-data/intonations
+espeak-ng-data/phondata
+espeak-ng-data/phondata-manifest
+espeak-ng-data/phonindex
+espeak-ng-data/phontab

@@ -26,7 +26,7 @@
 #include <string.h>
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #include "error.h"
 #include "phoneme.h"
@@ -126,6 +126,7 @@ espeak_ng_STATUS espeak_ng_CompileMbrolaVoice(const char *filepath, FILE *log, e
 	if ((f_out = fopen(buf, "wb")) == NULL)
 		return create_file_error_context(context, errno, buf);
 
+	memset(&data[count], 0, sizeof(data[count]));
 	data[count].name = 0; // list terminator
 	Write4Bytes(f_out, mbrola_ctrl);
 

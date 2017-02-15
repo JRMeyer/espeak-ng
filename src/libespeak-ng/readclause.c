@@ -32,7 +32,7 @@
 #include <wctype.h>
 
 #include <espeak-ng/espeak_ng.h>
-#include <espeak/speak_lib.h>
+#include <espeak-ng/speak_lib.h>
 
 #include "error.h"
 #include "speech.h"
@@ -220,293 +220,13 @@ const int param_defaults[N_SPEECH_PARAM] = {
 	0,   // voice type
 };
 
-// additional Latin characters beyond the ascii character set
-#define MAX_WALPHA  0x24f
-// indexed by character - 0x80
-// 0=not alphabetic, 0xff=lower case, 0xfe=no case, 0xfd=use wchar_tolower
-//   other=value to add to upper case to convert to lower case
-static unsigned char walpha_tab[MAX_WALPHA-0x7f] = {
-	   0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0, // 080
-	   0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0, // 090
-	   0,    0,    0,    0,    0,    0,    0,    0,    0,    0, 0xfe,    0,    0,    0,    0,    0, // 0a0
-	   0,    0,    0,    0,    0, 0xff,    0,    0,    0,    0, 0xfe,    0,    0,    0,    0,    0, // 0b0
-	  32,   32,   32,   32,   32,   32,   32,   32,   32,   32,   32,   32,   32,   32,   32,   32, // 0c0
-	  32,   32,   32,   32,   32,   32,   32,    0,   32,   32,   32,   32,   32,   32,   32, 0xff, // 0d0
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // 0e0
-	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,    0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // 0f0
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 100
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 110
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 120
-	0xfd, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, 0xfe,    1, 0xff,    1, 0xff,    1, 0xff,    1, // 130
-	0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, 0xfe,    1, 0xff,    1, 0xff,    1, 0xff, // 140
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 150
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 160
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, 0xfd,    1, 0xff,    1, 0xff,    1, 0xff, 0xff, // 170
-	0xff,  210,    1, 0xff,    1, 0xff,  206,    1, 0xff,  205,  205,    1, 0xff, 0xfe,   79,  202, // 180
-	 203,    1, 0xff,  205,  207, 0xff,  211,  209,    1, 0xff, 0xff, 0xfe,  211,  213, 0xff,  214, // 190
-	   1, 0xff,    1, 0xff,    1, 0xff,  218,    1, 0xff,  218, 0xfe, 0xfe,    1, 0xff,  218,    1, // 1a0
-	0xff,  217,  217,    1, 0xff,    1, 0xff,  219,    1, 0xff, 0xfe, 0xfe,    1, 0xff, 0xfe, 0xff, // 1b0
-	0xfe, 0xfe, 0xfe, 0xfe,    2, 0xff, 0xff,    2, 0xff, 0xff,    2, 0xff, 0xff,    1, 0xff,    1, // 1c0
-	0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, 0xff,    1, 0xff, // 1d0
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 1e0
-	0xfe,    2, 0xff, 0xff,    1, 0xff, 0xfd, 0xfd,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 1f0
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 200
-	   1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 210
-	0xfd, 0xfe,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff, // 220
-	   1, 0xff,    1, 0xff, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfe, 0xfd,    1, 0xff, 0xfd, 0xfd, 0xfe, // 230
-	0xfe,    1, 0xff, 0xfd,   69,   71,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff,    1, 0xff  // 240
-};
-
-static const short wchar_tolower[] = {
-	0x130, 0x069,
-	0x178, 0x0ff,
-	0x1f6, 0x195,
-	0x1f7, 0x1bf,
-	0x220, 0x19e,
-	0x23a, 0x2c65,
-	0x23d, 0x19a,
-	0x23e, 0x2c66,
-	0x243, 0x180,
-	0, 0
-};
-
-static const short wchar_toupper[] = {
-	0x0b5, 0x39c,
-	0x0df, 0x0df,
-	0x0ff, 0x178,
-	0x131, 0x049,
-	0x17f, 0x053,
-	0x180, 0x243,
-	0x195, 0x1f6,
-	0x19a, 0x23d,
-	0x19e, 0x220,
-	0x1bf, 0x1f7,
-	0x1c6, 0x1c4,
-	0x1c9, 0x1c7,
-	0x1cc, 0x1ca,
-	0x1dd, 0x18e,
-	0x1f3, 0x1f1,
-	0, 0
-};
-
-#ifdef NEED_WCHAR_FUNCTIONS
-
-// use ctype.h functions for Latin1 (character < 0x100)
-int iswalpha(int c)
-{
-	if (c < 0x80)
-		return isalpha(c);
-	if ((c > 0x3040) && (c <= 0xa700))
-		return 1;  // japanese, chinese characters
-	if (c > MAX_WALPHA)
-		return 0;
-	return walpha_tab[c-0x80];
-}
-
-int iswdigit(int c)
-{
-	if (c < 0x80)
-		return isdigit(c);
-	return 0;
-}
-
-int iswalnum(int c)
-{
-	if (iswdigit(c))
-		return 1;
-	return iswalpha(c);
-}
-
-int towlower(int c)
-{
-	int x;
-	int ix;
-
-	if (c < 0x80)
-		return tolower(c);
-
-	if ((c > MAX_WALPHA) || ((x = walpha_tab[c-0x80]) >= 0xfe))
-		return c;
-
-	if (x == 0xfd) {
-		// special cases, lookup translation table
-		for (ix = 0; wchar_tolower[ix] != 0; ix += 2) {
-			if (wchar_tolower[ix] == c)
-				return wchar_tolower[ix+1];
-		}
-	}
-	return c + x; // convert to lower case
-}
-
-int towupper(int c)
-{
-	int ix;
-	// check whether a previous character code is the upper-case equivalent of this character
-	if (towlower(c-32) == c)
-		return c-32; // yes, use it
-	if (towlower(c-1) == c)
-		return c-1;
-	for (ix = 0; wchar_toupper[ix] != 0; ix += 2) {
-		if (wchar_toupper[ix] == c)
-			return wchar_toupper[ix+1];
-	}
-	return c;  // no
-}
-
-int iswupper(int c)
-{
-	int x;
-	if (c < 0x80)
-		return isupper(c);
-	if (((c > MAX_WALPHA) || (x = walpha_tab[c-0x80]) == 0) || (x == 0xff))
-		return 0;
-	return 1;
-}
-
-int iswlower(int c)
-{
-	if (c < 0x80)
-		return islower(c);
-	if ((c > MAX_WALPHA) || (walpha_tab[c-0x80] != 0xff))
-		return 0;
-	return 1;
-}
-
-int iswspace(int c)
-{
-	if (c < 0x80)
-		return isspace(c);
-	if (c == 0xa0)
-		return 1;
-	return 0;
-}
-
-int iswpunct(int c)
-{
-	if (c < 0x100)
-		return ispunct(c);
-	return 0;
-}
-
-const wchar_t *wcschr(const wchar_t *str, int c)
-{
-	while (*str != 0) {
-		if (*str == c)
-			return str;
-		str++;
-	}
-	return NULL;
-}
-
-#ifndef WINCE
-// wcslen() is provided by WINCE, but not the other wchar functions
-const int wcslen(const wchar_t *str)
-{
-	int ix = 0;
-
-	while (*str != 0)
-		ix++;
-	return ix;
-}
-#endif
-
-float wcstod(const wchar_t *str, wchar_t **tailptr)
-{
-	int ix;
-	char buf[80];
-	while (isspace(*str)) str++;
-	for (ix = 0; ix < 80; ix++) {
-		buf[ix] = str[ix];
-		if (isspace(buf[ix]))
-			break;
-	}
-	*tailptr = (wchar_t *)&str[ix];
-	return atof(buf);
-}
-#endif
-
-// use internal data for iswalpha up to U+024F
-// iswalpha() on Windows is unreliable  (U+AA, U+BA).
-int iswalpha2(int c)
-{
-	if (c < 0x80)
-		return isalpha(c);
-	if ((c > 0x3040) && (c <= 0xa700))
-		return 1; // japanese, chinese characters
-	if (c > MAX_WALPHA)
-		return iswalpha(c);
-	return walpha_tab[c-0x80];
-}
-
-int iswlower2(int c)
-{
-	if (c < 0x80)
-		return islower(c);
-	if (c > MAX_WALPHA)
-		return iswlower(c);
-	if (walpha_tab[c-0x80] == 0xff)
-		return 1;
-	return 0;
-}
-
-int iswupper2(int c)
-{
-	int x;
-	if (c < 0x80)
-		return isupper(c);
-	if (c > MAX_WALPHA)
-		return iswupper(c);
-	if (((x = walpha_tab[c-0x80]) > 0) && (x < 0xfe))
-		return 1;
-	return 0;
-}
-
 int towlower2(unsigned int c)
 {
-	int x;
-	int ix;
-
 	// check for non-standard upper to lower case conversions
-	if (c == 'I') {
-		if (translator->langopts.dotless_i)
-			c = 0x131; // I -> ı
-	}
+	if (c == 'I' && translator->langopts.dotless_i)
+		return 0x131; // I -> ı
 
-	if (c < 0x80)
-		return tolower(c);
-
-	if (c > MAX_WALPHA)
-		return towlower(c);
-
-	if ((x = walpha_tab[c-0x80]) >= 0xfe)
-		return c; // this is not an upper case letter
-
-	if (x == 0xfd) {
-		// special cases, lookup translation table
-		for (ix = 0; wchar_tolower[ix] != 0; ix += 2) {
-			if (wchar_tolower[ix] == (int)c)
-				return wchar_tolower[ix+1];
-		}
-	}
-	return c + x; // convert to lower case
-}
-
-int towupper2(unsigned int c)
-{
-	int ix;
-	if (c > MAX_WALPHA)
-		return towupper(c);
-
-	// check whether a previous character code is the upper-case equivalent of this character
-	if (towlower2(c-32) == (int)c)
-		return c-32; // yes, use it
-	if (towlower2(c-1) == (int)c)
-		return c-1;
-	for (ix = 0; wchar_toupper[ix] != 0; ix += 2) {
-		if (wchar_toupper[ix] == (int)c)
-			return wchar_toupper[ix+1];
-	}
-	return c; // no
+	return towlower(c);
 }
 
 static int IsRomanU(unsigned int c)
@@ -800,7 +520,7 @@ static espeak_ng_STATUS LoadSoundFile(const char *fname, int index, espeak_ng_ER
 		return EINVAL;
 
 	if (fname[0] != '/') {
-		// a relative path, look in espeak-data/soundicons
+		// a relative path, look in espeak-ng-data/soundicons
 		sprintf(fname2, "%s%csoundicons%c%s", path_home, PATHSEP, PATHSEP, fname);
 		fname = fname2;
 	}
@@ -847,6 +567,10 @@ static espeak_ng_STATUS LoadSoundFile(const char *fname, int index, espeak_ng_ER
 	}
 
 	length = GetFileLength(fname);
+	if (length < 0) { // length == -errno
+		fclose(f);
+		return create_file_error_context(context, -length, fname);
+	}
 	if (fseek(f, 0, SEEK_SET) == -1) {
 		int error = errno;
 		fclose(f);
@@ -1112,7 +836,7 @@ static const char *VoiceFromStack()
 			voice_name_specified = 1;
 			strcpy(voice_name, sp->voice_name);
 			language[0] = 0;
-			voice_select.gender = 0;
+			voice_select.gender = ENGENDER_UNKNOWN;
 			voice_select.age = 0;
 			voice_select.variant = 0;
 		}
@@ -1133,7 +857,7 @@ static const char *VoiceFromStack()
 			if (voice_name_specified == 0)
 				voice_name[0] = 0; // forget a previous voice name if a language is specified
 		}
-		if (sp->voice_gender != 0)
+		if (sp->voice_gender != ENGENDER_UNKNOWN)
 			voice_select.gender = sp->voice_gender;
 
 		if (sp->voice_age != 0)
@@ -1148,7 +872,7 @@ static const char *VoiceFromStack()
 	if (v_id == NULL)
 		return "default";
 
-	if ((strchr(v_id, '+') == NULL) && ((voice_select.gender == 0) || (voice_select.gender == base_voice.gender)) && (base_voice_variant_name[0] != 0)) {
+	if ((strchr(v_id, '+') == NULL) && ((voice_select.gender == ENGENDER_UNKNOWN) || (voice_select.gender == base_voice.gender)) && (base_voice_variant_name[0] != 0)) {
 		// a voice variant has not been selected, use the original voice variant
 		sprintf(buf, "%s+%s", v_id, base_voice_variant_name);
 		strncpy0(voice_name, buf, sizeof(voice_name));
@@ -1450,10 +1174,10 @@ static int GetVoiceAttributes(wchar_t *pw, int tag_type)
 	SSML_STACK *ssml_sp;
 
 	static const MNEM_TAB mnem_gender[] = {
-		{ "male", 1 },
-		{ "female", 2 },
-		{ "neutral", 3 },
-		{ NULL, 0 }
+		{ "male", ENGENDER_MALE },
+		{ "female", ENGENDER_FEMALE },
+		{ "neutral", ENGENDER_NEUTRAL },
+		{ NULL, ENGENDER_UNKNOWN }
 	};
 
 	if (tag_type & SSML_CLOSE) {
@@ -2147,7 +1871,7 @@ int ReadClause(Translator *tr, FILE *f_in, char *buf, short *charix, int *charix
 					while (!Eof() && (c1 != '>'))
 						c1 = GetC();
 					c2 = ' ';
-				} else if ((c2 == '/') || iswalpha2(c2)) {
+				} else if ((c2 == '/') || iswalpha(c2)) {
 					// check for space in the output buffer for embedded commands produced by the SSML tag
 					if (ix > (n_buf - 20)) {
 						// Perhaps not enough room, end the clause before the SSML tag
@@ -2299,9 +2023,9 @@ int ReadClause(Translator *tr, FILE *f_in, char *buf, short *charix, int *charix
 			}
 		}
 
-		if (iswupper2(c1)) {
+		if (iswupper(c1)) {
 			tr->clause_upper_count++;
-			if ((option_capitals == 2) && (sayas_mode == 0) && !iswupper2(cprev)) {
+			if ((option_capitals == 2) && (sayas_mode == 0) && !iswupper(cprev)) {
 				char text_buf[40];
 				char text_buf2[30];
 				if (LookupSpecial(tr, "_cap", text_buf2) != NULL) {
@@ -2313,7 +2037,7 @@ int ReadClause(Translator *tr, FILE *f_in, char *buf, short *charix, int *charix
 					}
 				}
 			}
-		} else if (iswalpha2(c1))
+		} else if (iswalpha(c1))
 			tr->clause_lower_count++;
 
 		if (option_phoneme_input) {
@@ -2370,7 +2094,7 @@ int ReadClause(Translator *tr, FILE *f_in, char *buf, short *charix, int *charix
 				// i.e. is dot followed by an upper-case letter?
 
 				if (!iswspace(c1)) {
-					if (!IsAlpha(c1) || !iswlower2(c1)) {
+					if (!IsAlpha(c1) || !iswlower(c1)) {
 						UngetC(c2);
 						ungot_char2 = c1;
 						buf[end_clause_index] = ' '; // delete the end-clause punctuation
@@ -2452,7 +2176,7 @@ int ReadClause(Translator *tr, FILE *f_in, char *buf, short *charix, int *charix
 					punct_data |= CLAUSE_DOT;
 
 				if (nl_count == 0) {
-					if ((c1 == ',') && (cprev == '.') && (tr->translator_name == L('h', 'u')) && iswdigit(cprev2) && (iswdigit(c_next) || (iswlower2(c_next)))) {
+					if ((c1 == ',') && (cprev == '.') && (tr->translator_name == L('h', 'u')) && iswdigit(cprev2) && (iswdigit(c_next) || (iswlower(c_next)))) {
 						// lang=hu, fix for ordinal numbers, eg:  "december 2., szerda", ignore ',' after ordinal number
 						c1 = CHAR_COMMA_BREAK;
 						is_end_clause = 0;
@@ -2464,11 +2188,11 @@ int ReadClause(Translator *tr, FILE *f_in, char *buf, short *charix, int *charix
 							// dot after a number indicates an ordinal number
 							if (!iswdigit(cprev))
 								is_end_clause = 0; // Roman number followed by dot
-							else if (iswlower2(c_next) || (c_next == '-')) // hyphen is needed for lang-hu (eg. 2.-kal)
+							else if (iswlower(c_next) || (c_next == '-')) // hyphen is needed for lang-hu (eg. 2.-kal)
 								is_end_clause = 0; // only if followed by lower-case, (or if there is a XML tag)
 						} else if (c_next == '\'')
 							is_end_clause = 0;    // eg. u.s.a.'s
-						if (iswlower2(c_next)) {
+						if (iswlower(c_next)) {
 							// next word has no capital letter, this dot is probably from an abbreviation
 							is_end_clause = 0;
 						}

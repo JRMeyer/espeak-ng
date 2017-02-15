@@ -5,53 +5,87 @@
 
 
 phoneme a
-  vowel starttype #a endtype #a
-  length 200
+  vwl starttype #a endtype #a
+  length 190
+  ChangeIfNotStressed(a/)
   FMT(vowel/a_4)
 endphoneme
 
+phoneme a/
+  vwl starttype #a endtype #a
+  length 155
+  IF thisPh(isWordEnd) THEN
+    FMT(vowel/a_4, 85)
+  ENDIF
+  FMT(vowel/a_4, 95)
+endphoneme
+
 phoneme e
-  vowel starttype #e endtype #e
-  length 200
+  vwl starttype #e endtype #e
+  length 190
+  ChangeIfNotStressed(e/)
   FMT(vowel/e_mid2)
 endphoneme
 
+phoneme e/
+  vwl starttype #e endtype #e
+  length 150
+  FMT(vowel/e_mid2, 90)
+endphoneme
+
 phoneme E
-  vowel starttype #e endtype #e
-  length 200
+  vwl starttype #e endtype #e
+  length 175
+  ChangeIfNotStressed(e/)
   FMT(vowel/e_mid2)
 endphoneme
 
 phoneme i
-  vowel starttype #i endtype #i
+  vwl starttype #i endtype #i
   length 190
   IfNextVowelAppend(;)
   FMT(vowel/i)
 endphoneme
 
 phoneme o
-  vowel starttype #o endtype #o
-  length 200
+  vwl starttype #o endtype #o
+  length 195
+  ChangeIfNotStressed(o/)
+  IF nextPhW(n) THEN
+    length 160
+    FMT(vowel/o_mid2)
+  ENDIF
   FMT(vowel/oo)
 endphoneme
 
-phoneme O
-  vowel starttype #o endtype #o
-  length 200
-  FMT(vowel/oo)
+phoneme o/
+  vwl starttype #o endtype #o
+  length 155
+  IF thisPh(isWordEnd) THEN
+    FMT(vwl_es/oo_)
+  ENDIF
+  FMT(vowel/oo, 90)
 endphoneme
 
 phoneme u
-  vowel starttype #u endtype #u
+  vwl starttype #u endtype #u
   length 200
   FMT(vowel/u_bck2)
 endphoneme
 
-
+phoneme oI
+  vwl starttype #o endtype #i
+  length 245
+  IF thisPh(isWordEnd) OR prevPh(r) THEN
+    length 260
+    FMT(vwl_es/ooi_)
+  ENDIF
+  FMT(vwl_es/ooi)
+endphoneme
 
 
 phoneme g
-  vcd vel stop
+  vcd vel stp
   lengthmod 5
   voicingswitch k
   Vowelin  f1=2  f2=2300 200 300  f3=-300 80
@@ -75,7 +109,7 @@ phoneme g
 endphoneme
 
 phoneme d
-  vcd dnt stop
+  vcd dnt stp
 
   IF nextPh(isVowel) OR nextPh(isRhotic) OR nextPh(j) THEN
     IF prevPh(isPause) OR prevPh(isNasal) OR prevPh(l) THEN
@@ -88,7 +122,7 @@ phoneme d
 endphoneme
 
 phoneme b
-  vcd blb stop
+  vcd blb stp
 
   IF nextPh(isVowel) OR nextPh(isRhotic) OR nextPh(isLiquid) THEN
     IF prevPh(isPause) OR prevPh(isNasal) THEN
@@ -97,7 +131,7 @@ phoneme b
     ENDIF
   ENDIF
 
-  CALL base/b
+  CALL base1/b
 endphoneme
 
 
@@ -105,7 +139,7 @@ phoneme D
   vcd dnt frc
   lengthmod 6
   voicingswitch T
-  CALL base/D
+  CALL base1/D
   IF nextPh(isPause2) THEN
     FMT(voc/dh_) addWav(vocw/dh, 35)   // weaker 
   ENDIF
@@ -113,7 +147,7 @@ endphoneme
 
 
 phoneme s
-  vls alv frc sibilant
+  vls alv frc sib
   lengthmod 3
   voicingswitch  z
   Vowelin  f1=0  f2=1700 -300 300  f3=-100 80
@@ -153,7 +187,7 @@ phoneme r
     ChangePhoneme(**)
   ENDIF
 
-  CALL base/*
+  CALL base1/*
 endphoneme
 
 

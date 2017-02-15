@@ -79,7 +79,7 @@ Starts a new phoneme table, and ends the previous table.
 
 \<parent\> Is the name of a previously defined phoneme table whose phoneme
 definitions are inherited by this one. The name `base` indicates the first
-(base) phoneme table.
+(base) phoneme table. The name `_` indicates no parent phoneme table.
 
 ## Phoneme Definitions
 
@@ -88,22 +88,17 @@ the keyword `phoneme` and the phoneme name (this is the name used in
 the pronunciation rules in a language's \*\_rules and \*\_list files),
 and ends with the keyword `endphoneme`.
 
-The phoneme mnemonics are based on the scheme by
-[Evan Kirshenbaum](http://www.kirshenbaum.net/IPA/ascii-ipa.pdf)
-which represents International Phonetic Alphabet symbols using ascii
-characters.
-
 For example:
 
 	phoneme aI
-	  vowel
+	  vwl
 	  starttype #a endtype #i
 	  length 230
 	  FMT(vowels/ai)
 	endphoneme
 
 	phoneme s
-	  vls alv frc sibilant
+	  vls alv sib frc
 	  voicingswitch z
 	  lengthmod 3
 	  Vowelin  f1=0  f2=1700 -300 300  f3=-100 80
@@ -140,21 +135,20 @@ vary the length from the original.
 
 ## Phoneme Properties
 
-Within the phoneme definition the following lines may occur: (`(V)` indicates
+The phoneme features are described in the [Phonemes](phonemes.md) document. These
+should be included within the `phoneme` to fully describe that phoneme.
+
+Within the phoneme definition the following lines may also occur: (`(V)` indicates
 only for vowels, `(C)` only for consonants).
 
 ### Type
 
-One of these must be present.
+One of these or a manner of articulation from the [Phonemes](phonemes.md) document
+must be present.
 
 | Type      | Description |
 |-----------|-------------|
-| `vowel`   |             |
 | `liquid`  | semi-vowels, such as:  `r`, `l`, `j`, `w` |
-| `nasal`   | nasal e.g.:  `m`, `n`, `N` |
-| `stop`    | stop (plosive) e.g.: `p`, `b`, `t`, `d`, `k`, `g` |
-| `frc`     | fricative e.g.: `f`, `v`, `T`, `D`, `s`, `z`, `S`, `Z`, `C`, `x` |
-| `afr`     | affricate e.g.: `tS`, `dZ` |
 | `pause`   |             |
 | `stress`  | Used for stress symbols, eg: `'` `,` `=` `%` |
 | `virtual` | Used to represent a class of phonemes. |
@@ -163,32 +157,11 @@ One of these must be present.
 
 | Property     | Type | Description |
 |--------------|------|-------------|
-| `vls`        | (C)  | voiceless e.g. `p`, `t`, `k`, `f`, `s` |
-| `vcd`        | (C)  | voiced e.g. `b`, `d`, `g`, `v`, `z` |
-| `sibilant`   | (C)  | e.g.: `s`, `z`, `S`, `Z`, `tS`, `dZ` |
-| `palatal`    | (C)  | A palatal or palatalized consonant. |
 | `rhotic`     | (C)  | An `r` type consonant. |
 | `unstressed` | (V)  | This vowel is always unstressed, unless explicitly marked otherwise. |
 | `nolink`     |      | Prevent any linking from the previous phoneme. |
 | `nopause`    |      | Used in a `liquid` or `nasal` phoneme to prevent eSpeak NG inserting a short pause if a word starts with this phoneme and the previous word ends with a vowel. |
 | `trill`      | (C)  | Apply trill to the voicing. |
-
-### Place of Articulation
-
-| Articulation | Type | Description     |
-|--------------|------|-----------------|
-| `blb`        | (C)  | bilabial        |
-| `ldb`        | (C)  | labio-dental    |
-| `dnt`        | (C)  | dental          |
-| `alv`        | (C)  | alveolar        |
-| `rfx`        | (C)  | retroflex       |
-| `pla`        | (C)  | palato-alveolar |
-| `pal`        | (C)  | palatal         |
-| `vel`        | (C)  | velar           |
-| `lbv`        | (C)  | labio-velar     |
-| `uvl`        | (C)  | uvular          |
-| `phr`        | (C)  | pharyngeal      |
-| `glt`        | (C)  | glottal         |
 
 ### starttype
 
@@ -236,15 +209,15 @@ instructions.
 
 	length <length>
 
-The relative length of the phoneme in miliseconds. Typical values are about 
-140 for a short vowel and from 200 to 300 for a long vowel or diphong. 
+The relative length of the phoneme in milliseconds. Typical values are about 
+140 for a short vowel and from 200 to 300 for a long vowel or a diphthong. 
 A `length()` instruction is needed for vowels. It is optional for consonants.
 
 ### ipa
 
 	ipa <ipa string>
 
-In many cases, eSpeak NG makes IPA (International Phonetic Alpbabet) phoneme
+In many cases, eSpeak NG makes IPA (International Phonetic Alphabet) phoneme
 names automatically from eSpeak NG phoneme names. If this is not correct, then
 the phoneme definition can include an `ipa` instruction to specify the correct
 IPA name. IPA strings may include non-ascii characters. They may also include
@@ -565,7 +538,7 @@ is limited by the program.
 
 	len=<integer>
 
-Nominal length of the transition in miliseconds. If omitted a default value is used.
+Nominal length of the transition in milliseconds. If omitted a default value is used.
 
 	rms=<integer>
 
